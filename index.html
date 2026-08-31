@@ -80,7 +80,7 @@
         }
 
         .chart-inner {
-            width: 2000px;
+            width: 2600px;
             position: relative;
         }
 
@@ -95,8 +95,8 @@
             border-top: 1px dashed var(--border-color);
             padding-top: 8px;
             margin-top: 4px;
-            padding-left: 45px; /* Y軸のマージン調整 */
-            padding-right: 45px;
+            padding-left: 50px;
+            padding-right: 50px;
         }
 
         .wind-col {
@@ -232,14 +232,19 @@
             const windSpeeds = weather.hourly.wind_speed_10m.map(v => v !== null ? (v / 3.6).toFixed(1) : null);
             const windDirections = weather.hourly.wind_direction_10m;
 
+            // ラベルフォーマット処理：0時は「月/日」、それ以外は数字のみ
             const labels = times.map(t => {
                 const d = new Date(t);
-                const date = String(d.getDate()).padStart(2, '0');
-                const hours = String(d.getHours()).padStart(2, '0');
-                return `${date}日 ${hours}:00`;
+                const month = d.getMonth() + 1;
+                const date = d.getDate();
+                const hours = d.getHours();
+                
+                if (hours === 0) {
+                    return `${month}/${date}`;
+                }
+                return `${hours}`;
             });
 
-            // 現在時刻のインデックスを取得
             const now = new Date();
             let currentIndex = 0;
             let minDiff = Infinity;
@@ -251,7 +256,7 @@
                 }
             });
 
-            // 上部カードの更新
+            // 上部カード表示更新
             const curWave = waveHeights[currentIndex] !== null ? waveHeights[currentIndex].toFixed(2) : '--';
             const curTide = seaLevels[currentIndex] !== null ? seaLevels[currentIndex].toFixed(2) : '--';
             const curWindSpeed = windSpeeds[currentIndex] !== null ? windSpeeds[currentIndex] : '--';
@@ -267,16 +272,29 @@
             document.getElementById('currentWind').textContent = curWindSpeed + 'm/s';
             document.getElementById('currentWindDir').textContent = `${windInfo.arrow} (${windInfo.text})`;
 
-            // グラフ描画
-            renderChart(labels, waveHeights, seaLevels);
-
-            // グラフ直下の風予報タイムライン生成
+            renderChart(labels, times, waveHeights, seaLevels);
             renderWindTimeline(windSpeeds, windDirections);
         }
 
-        function renderChart(labels, waveData, tideData) {
+        function renderChart(labels, rawTimes, waveData, tideData) {
             const ctx = document.getElementById('marineChart').getContext('2d');
             if (myChart) myChart.destroy();
+
+            // 3時間ごとの太字・カラー強調設定
+            const tickFontColors = rawTimes.map(t => {
+                const h = new Date(t).getHours();
+                return (h % 3 === 0) ? '#f8fafc' : '#64748b'; // 3の倍数時間は明るく、それ以外は少し薄く
+            });
+
+            const tickFontWeights = rawTimes.map(t => {
+                const h = new Date(t).getHours();
+                return (h % 3 === 0) ? 'bold' : 'normal';
+            });
+
+            const tickFontSizes = rawTimes.map(t => {
+                const h = new Date(t).getHours();
+                return (h === 0 || h % 3 === 0) ? 11 : 9;
+            });
 
             myChart = new Chart(ctx, {
                 type: 'bar',
@@ -314,7 +332,21 @@
                     },
                     scales: {
                         x: {
-                            ticks: { color: '#94a3b8', maxRotation: 0, autoSkip: false },
+                            ticks: { 
+                                autoSkip: false, /* すべての1時間刻みをカットせず表示 */
+                                maxRotation: 0, 
+                                font: function(context) {
+                                    const index = context.index;
+                                    return {
+                                        size: tickFontSizes[index] || 10,
+                                        weight: tickFontWeights[index] || 'normal'
+                                    };
+                                },
+                                color: function(context) {
+                                    const index = context.index;
+                                    return tickFontColors[index] || '#94a3b8';
+                                }
+                            },
                             grid: { color: 'rgba(51, 65, 85, 0.3)' }
                         },
                         yWave: {
