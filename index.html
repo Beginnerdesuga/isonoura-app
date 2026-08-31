@@ -194,7 +194,7 @@
             const times = marine.hourly.time;
             const waveHeights = marine.hourly.wave_height;
             const seaLevels = marine.hourly.sea_level_height_msl;
-            const windSpeeds = weather.hourly.wind_speed_10m.map(v => v !== null ? (v / 3.6).toFixed(1) : null); // km/h -> m/s
+            const windSpeeds = weather.hourly.wind_speed_10m.map(v => v !== null ? (v / 3.6).toFixed(1) : null);
             const windDirections = weather.hourly.wind_direction_10m;
 
             const labels = times.map(t => {
@@ -230,10 +230,10 @@
             document.getElementById('currentWind').textContent = curWindSpeed + 'm/s';
             document.getElementById('currentWindDir').textContent = `${windInfo.arrow} (${windInfo.text})`;
 
-            renderChart(labels, waveHeights, seaLevels, windSpeeds);
+            renderChart(labels, waveHeights, seaLevels);
         }
 
-        function renderChart(labels, waveData, tideData, windData) {
+        function renderChart(labels, waveData, tideData) {
             const ctx = document.getElementById('marineChart').getContext('2d');
             if (myChart) myChart.destroy();
 
@@ -249,7 +249,7 @@
                             borderColor: '#38bdf8',
                             borderWidth: 1,
                             yAxisID: 'yWave',
-                            order: 3
+                            order: 2
                         },
                         {
                             label: '潮位 (m)',
@@ -261,18 +261,6 @@
                             pointRadius: 0,
                             yAxisID: 'yTide',
                             order: 1
-                        },
-                        {
-                            label: '風速 (m/s)',
-                            data: windData,
-                            type: 'line',
-                            borderColor: '#4ade80',
-                            borderWidth: 2,
-                            borderDash: [4, 4],
-                            tension: 0.2,
-                            pointRadius: 0,
-                            yAxisID: 'yWind',
-                            order: 2
                         }
                     ]
                 },
@@ -303,12 +291,6 @@
                             title: { display: true, text: '潮位(m)', color: '#fb923c' },
                             ticks: { color: '#fb923c' },
                             grid: { drawOnChartArea: false }
-                        },
-                        yWind: {
-                            type: 'linear',
-                            display: false, // 画面がごちゃつくのを防ぐため軸自体は非表示
-                            beginAtZero: true,
-                            suggestedMax: 15.0
                         }
                     }
                 }
