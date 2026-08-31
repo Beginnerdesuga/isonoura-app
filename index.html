@@ -80,9 +80,41 @@
         }
 
         .chart-inner {
-            height: 380px;
-            width: 1300px;
+            width: 2000px;
             position: relative;
+        }
+
+        .canvas-container {
+            height: 300px;
+            position: relative;
+        }
+
+        /* 風予報タイムライン */
+        .wind-timeline {
+            display: flex;
+            border-top: 1px dashed var(--border-color);
+            padding-top: 8px;
+            margin-top: 4px;
+            padding-left: 45px; /* Y軸のマージン調整 */
+            padding-right: 45px;
+        }
+
+        .wind-col {
+            flex: 1;
+            text-align: center;
+            min-width: 0;
+        }
+
+        .wind-val {
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: var(--accent-wind);
+        }
+
+        .wind-arrow {
+            font-size: 0.85rem;
+            margin-top: 1px;
+            color: var(--text-primary);
         }
 
         .controls {
@@ -142,11 +174,14 @@
         </div>
     </div>
 
-    <div class="scroll-hint">👈 横スワイプで先の時間を表示</div>
+    <div class="scroll-hint">👈 横スワイプで先時間の波・潮・風を表示</div>
     <div class="chart-scroll-wrapper">
         <div id="loading" class="loading-overlay">取得中...</div>
         <div class="chart-inner">
-            <canvas id="marineChart"></canvas>
+            <div class="canvas-container">
+                <canvas id="marineChart"></canvas>
+            </div>
+            <div class="wind-timeline" id="windTimeline"></div>
         </div>
     </div>
 
@@ -174,7 +209,7 @@
 
             try {
                 const [resMarine, resWeather] = await Promise.all([fetch(urlMarine), fetch(urlWeather)]);
-                if (!resMarine.ok || !resWeather.ok) throw new Error('取得失敗');
+                if (!resMarine.ok || !resWeather.ok) throw new Error('データ取得失敗');
                 
                 const dataMarine = await resMarine.json();
                 const dataWeather = await resWeather.json();
@@ -204,6 +239,7 @@
                 return `${date}日 ${hours}:00`;
             });
 
+            // 現在時刻のインデックスを取得
             const now = new Date();
             let currentIndex = 0;
             let minDiff = Infinity;
@@ -215,6 +251,7 @@
                 }
             });
 
+            // 上部カードの更新
             const curWave = waveHeights[currentIndex] !== null ? waveHeights[currentIndex].toFixed(2) : '--';
             const curTide = seaLevels[currentIndex] !== null ? seaLevels[currentIndex].toFixed(2) : '--';
             const curWindSpeed = windSpeeds[currentIndex] !== null ? windSpeeds[currentIndex] : '--';
@@ -230,7 +267,11 @@
             document.getElementById('currentWind').textContent = curWindSpeed + 'm/s';
             document.getElementById('currentWindDir').textContent = `${windInfo.arrow} (${windInfo.text})`;
 
+            // グラフ描画
             renderChart(labels, waveHeights, seaLevels);
+
+            // グラフ直下の風予報タイムライン生成
+            renderWindTimeline(windSpeeds, windDirections);
         }
 
         function renderChart(labels, waveData, tideData) {
@@ -273,7 +314,7 @@
                     },
                     scales: {
                         x: {
-                            ticks: { color: '#94a3b8', maxRotation: 0, autoSkip: true, maxTicksLimit: 24 },
+                            ticks: { color: '#94a3b8', maxRotation: 0, autoSkip: false },
                             grid: { color: 'rgba(51, 65, 85, 0.3)' }
                         },
                         yWave: {
@@ -294,6 +335,24 @@
                         }
                     }
                 }
+            });
+        }
+
+        function renderWindTimeline(speeds, directions) {
+            const container = document.getElementById('windTimeline');
+            container.innerHTML = '';
+
+            speeds.forEach((speed, i) => {
+                const dirDeg = directions[i];
+                const info = dirDeg !== null ? getWindDirection(dirDeg) : { arrow: '' };
+
+                const col = document.createElement('div');
+                col.className = 'wind-col';
+                col.innerHTML = `
+                    <div class="wind-val">${speed !== null ? speed : '--'}</div>
+                    <div class="wind-arrow">${info.arrow}</div>
+                `;
+                container.appendChild(col);
             });
         }
 
