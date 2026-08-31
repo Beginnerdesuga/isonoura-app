@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>磯ノ浦 波高・タイドモニター</title>
+    <title>磯ノ浦 波・潮・風モニター</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
@@ -13,6 +13,7 @@
             --text-secondary: #94a3b8;
             --accent-wave: #38bdf8;
             --accent-tide: #fb923c;
+            --accent-wind: #4ade80;
             --border-color: #334155;
         }
 
@@ -33,17 +34,17 @@
 
         header {
             text-align: center;
-            margin-bottom: 16px;
+            margin-bottom: 12px;
         }
 
-        h1 { font-size: 1.25rem; font-weight: 700; }
-        .subtitle { font-size: 0.75rem; color: var(--text-secondary); }
+        h1 { font-size: 1.2rem; font-weight: 700; }
+        .subtitle { font-size: 0.7rem; color: var(--text-secondary); }
 
         .metrics-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 8px;
-            margin-bottom: 16px;
+            gap: 6px;
+            margin-bottom: 12px;
         }
 
         .metric-card {
@@ -55,32 +56,33 @@
         }
 
         .metric-label { font-size: 0.65rem; color: var(--text-secondary); }
-        .metric-value { font-size: 1.1rem; font-weight: 700; margin-top: 2px; }
+        .metric-value { font-size: 1.05rem; font-weight: 700; margin-top: 2px; }
+        .metric-sub { font-size: 0.7rem; color: var(--text-secondary); margin-top: 1px; }
         .metric-value.wave { color: var(--accent-wave); }
         .metric-value.tide { color: var(--accent-tide); }
-
-        /* 横スクロール用のコンテナ設定 */
-        .chart-scroll-wrapper {
-            background-color: var(--card-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
-            padding: 12px 8px;
-            position: relative;
-            overflow-x: auto; /* 横スクロールを許可 */
-            -webkit-overflow-scrolling: touch; /* iOSでのなめらかなスクロール */
-        }
-
-        .chart-inner {
-            height: 380px;
-            width: 1200px; /* グラフ全体の幅を広げてスクロール可能に */
-            position: relative;
-        }
+        .metric-value.wind { color: var(--accent-wind); }
 
         .scroll-hint {
             font-size: 0.7rem;
             color: var(--text-secondary);
             text-align: right;
             margin-bottom: 4px;
+        }
+
+        .chart-scroll-wrapper {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 10px 6px;
+            position: relative;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .chart-inner {
+            height: 380px;
+            width: 1300px;
+            position: relative;
         }
 
         .controls {
@@ -95,7 +97,7 @@
             color: white;
             border: none;
             border-radius: 6px;
-            padding: 6px 12px;
+            padding: 6px 14px;
             font-size: 0.8rem;
             font-weight: 600;
         }
@@ -118,22 +120,25 @@
 <body>
 
     <header>
-        <h1>🌊 磯ノ浦 波高・タイド</h1>
-        <p class="subtitle">Open-Meteo API リアルタイム予測</p>
+        <h1>🌊 磯ノ浦コンディション</h1>
+        <p class="subtitle">Open-Meteo API リアルタイム連携</p>
     </header>
 
     <div class="metrics-grid">
         <div class="metric-card">
-            <div class="metric-label">現在の波高</div>
+            <div class="metric-label">波高</div>
             <div class="metric-value wave" id="currentWave">--</div>
+            <div class="metric-sub" id="maxWave">本日最大 --</div>
         </div>
         <div class="metric-card">
-            <div class="metric-label">本日最大波高</div>
-            <div class="metric-value wave" id="maxWave">--</div>
-        </div>
-        <div class="metric-card">
-            <div class="metric-label">現在の潮位</div>
+            <div class="metric-label">潮位</div>
             <div class="metric-value tide" id="currentTide">--</div>
+            <div class="metric-sub">海面高度</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-label">風速・風向</div>
+            <div class="metric-value wind" id="currentWind">--</div>
+            <div class="metric-sub" id="currentWindDir">--</div>
         </div>
     </div>
 
@@ -153,19 +158,28 @@
     <script>
         let myChart = null;
 
+        function getWindDirection(deg) {
+            const directions = ['北', '北北東', '北東', '東北東', '東', '東南東', '南東', '南南東', '南', '南南西', '南西', '西南西', '西', '西北西', '北西', '北北西'];
+            const arrows = ['↓', '↙', '↙', '↙', '←', '↖', '↖', '↖', '↑', '↗', '↗', '↗', '→', '↘', '↘', '↘'];
+            const index = Math.round(deg / 22.5) % 16;
+            return { text: directions[index], arrow: arrows[index] };
+        }
+
         async function fetchData() {
             const loadingEl = document.getElementById('loading');
             loadingEl.style.display = 'flex';
 
-            // 3日分（72時間）のデータを取得
-            const url = 'https://marine-api.open-meteo.com/v1/marine?latitude=34.25&longitude=135.08&hourly=wave_height,sea_level_height_msl&timezone=Asia%2FTokyo&forecast_days=3';
+            const urlMarine = 'https://marine-api.open-meteo.com/v1/marine?latitude=34.25&longitude=135.08&hourly=wave_height,sea_level_height_msl&timezone=Asia%2FTokyo&forecast_days=3';
+            const urlWeather = 'https://api.open-meteo.com/v1/forecast?latitude=34.25&longitude=135.08&hourly=wind_speed_10m,wind_direction_10m&timezone=Asia%2FTokyo&forecast_days=3';
 
             try {
-                const response = await fetch(url);
-                if (!response.ok) throw new Error('取得失敗');
-                const data = await response.json();
+                const [resMarine, resWeather] = await Promise.all([fetch(urlMarine), fetch(urlWeather)]);
+                if (!resMarine.ok || !resWeather.ok) throw new Error('取得失敗');
+                
+                const dataMarine = await resMarine.json();
+                const dataWeather = await resWeather.json();
 
-                processAndRender(data);
+                processAndRender(dataMarine, dataWeather);
 
                 const now = new Date();
                 document.getElementById('lastUpdate').textContent = '更新: ' + now.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
@@ -176,10 +190,12 @@
             }
         }
 
-        function processAndRender(data) {
-            const times = data.hourly.time;
-            const waveHeights = data.hourly.wave_height;
-            const seaLevels = data.hourly.sea_level_height_msl;
+        function processAndRender(marine, weather) {
+            const times = marine.hourly.time;
+            const waveHeights = marine.hourly.wave_height;
+            const seaLevels = marine.hourly.sea_level_height_msl;
+            const windSpeeds = weather.hourly.wind_speed_10m.map(v => v !== null ? (v / 3.6).toFixed(1) : null); // km/h -> m/s
+            const windDirections = weather.hourly.wind_direction_10m;
 
             const labels = times.map(t => {
                 const d = new Date(t);
@@ -201,20 +217,24 @@
 
             const curWave = waveHeights[currentIndex] !== null ? waveHeights[currentIndex].toFixed(2) : '--';
             const curTide = seaLevels[currentIndex] !== null ? seaLevels[currentIndex].toFixed(2) : '--';
+            const curWindSpeed = windSpeeds[currentIndex] !== null ? windSpeeds[currentIndex] : '--';
+            const curWindDirDeg = windDirections[currentIndex];
+            const windInfo = curWindDirDeg !== null ? getWindDirection(curWindDirDeg) : { text: '--', arrow: '' };
             
             const todayWaveHeights = waveHeights.slice(0, 24).filter(v => v !== null);
             const maxWaveVal = todayWaveHeights.length > 0 ? Math.max(...todayWaveHeights).toFixed(2) : '--';
 
             document.getElementById('currentWave').textContent = curWave + 'm';
-            document.getElementById('maxWave').textContent = maxWaveVal + 'm';
+            document.getElementById('maxWave').textContent = '本日最大 ' + maxWaveVal + 'm';
             document.getElementById('currentTide').textContent = curTide + 'm';
+            document.getElementById('currentWind').textContent = curWindSpeed + 'm/s';
+            document.getElementById('currentWindDir').textContent = `${windInfo.arrow} (${windInfo.text})`;
 
-            renderChart(labels, waveHeights, seaLevels);
+            renderChart(labels, waveHeights, seaLevels, windSpeeds);
         }
 
-        function renderChart(labels, waveData, tideData) {
+        function renderChart(labels, waveData, tideData, windData) {
             const ctx = document.getElementById('marineChart').getContext('2d');
-
             if (myChart) myChart.destroy();
 
             myChart = new Chart(ctx, {
@@ -225,22 +245,34 @@
                         {
                             label: '波高 (m)',
                             data: waveData,
-                            backgroundColor: 'rgba(56, 189, 248, 0.7)',
+                            backgroundColor: 'rgba(56, 189, 248, 0.65)',
                             borderColor: '#38bdf8',
                             borderWidth: 1,
                             yAxisID: 'yWave',
-                            order: 2
+                            order: 3
                         },
                         {
                             label: '潮位 (m)',
                             data: tideData,
                             type: 'line',
                             borderColor: '#fb923c',
-                            borderWidth: 3,
+                            borderWidth: 2.5,
                             tension: 0.4,
                             pointRadius: 0,
                             yAxisID: 'yTide',
                             order: 1
+                        },
+                        {
+                            label: '風速 (m/s)',
+                            data: windData,
+                            type: 'line',
+                            borderColor: '#4ade80',
+                            borderWidth: 2,
+                            borderDash: [4, 4],
+                            tension: 0.2,
+                            pointRadius: 0,
+                            yAxisID: 'yWind',
+                            order: 2
                         }
                     ]
                 },
@@ -249,16 +281,11 @@
                     maintainAspectRatio: false,
                     interaction: { mode: 'index', intersect: false },
                     plugins: {
-                        legend: { labels: { color: '#f8fafc', boxWidth: 12 } }
+                        legend: { labels: { color: '#f8fafc', boxWidth: 12, font: { size: 11 } } }
                     },
                     scales: {
                         x: {
-                            ticks: {
-                                color: '#94a3b8',
-                                maxRotation: 0,
-                                autoSkip: true,
-                                maxTicksLimit: 24
-                            },
+                            ticks: { color: '#94a3b8', maxRotation: 0, autoSkip: true, maxTicksLimit: 24 },
                             grid: { color: 'rgba(51, 65, 85, 0.3)' }
                         },
                         yWave: {
@@ -276,6 +303,12 @@
                             title: { display: true, text: '潮位(m)', color: '#fb923c' },
                             ticks: { color: '#fb923c' },
                             grid: { drawOnChartArea: false }
+                        },
+                        yWind: {
+                            type: 'linear',
+                            display: false, // 画面がごちゃつくのを防ぐため軸自体は非表示
+                            beginAtZero: true,
+                            suggestedMax: 15.0
                         }
                     }
                 }
