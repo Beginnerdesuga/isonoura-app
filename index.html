@@ -58,10 +58,22 @@
 
         .metric-label { font-size: 0.65rem; color: var(--text-secondary); }
         .metric-value { font-size: 1.05rem; font-weight: 700; margin-top: 2px; }
-        .metric-sub { font-size: 0.7rem; color: var(--text-secondary); margin-top: 1px; }
+        .metric-sub { font-size: 0.65rem; color: var(--text-secondary); margin-top: 1px; }
         .metric-value.wave { color: var(--accent-wave); }
         .metric-value.tide { color: var(--accent-tide); }
         .metric-value.wind { color: var(--accent-wind); }
+
+        .wind-badge {
+            display: inline-block;
+            font-size: 0.6rem;
+            padding: 1px 5px;
+            border-radius: 4px;
+            margin-top: 2px;
+            font-weight: 600;
+        }
+        .badge-offshore { background-color: #166534; color: #4ade80; }
+        .badge-onshore { background-color: #991b1b; color: #fca5a5; }
+        .badge-cross { background-color: #854d0e; color: #fef08a; }
 
         .scroll-hint {
             font-size: 0.7rem;
@@ -90,43 +102,76 @@
             position: relative;
         }
 
-        /* タイムライン領域（波向き＆風予報） */
-        .timeline-container {
+        /* 横スライド時の左固定項目ラベル */
+        .timeline-wrapper {
+            display: flex;
             border-top: 1px dashed var(--border-color);
+            margin-top: 6px;
             padding-top: 6px;
-            margin-top: 4px;
-            padding-left: 50px;
-            padding-right: 50px;
         }
 
-        .timeline-row {
+        .timeline-labels {
+            position: sticky;
+            left: 0;
+            z-index: 5;
+            background-color: var(--card-bg);
+            width: 50px;
+            flex-shrink: 0;
             display: flex;
-            align-items: center;
+            flex-direction: column;
+            justify-content: space-around;
+            border-right: 1px solid var(--border-color);
+            padding-right: 4px;
+            font-size: 0.65rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-align: right;
+        }
+
+        .timeline-labels div {
+            height: 20px;
+            line-height: 20px;
+        }
+
+        .label-wave { color: var(--accent-wave); }
+        .label-wind-val { color: var(--accent-wind); }
+
+        .timeline-data {
+            display: flex;
+            flex-grow: 1;
+            padding-right: 50px;
         }
 
         .timeline-col {
             flex: 1;
             text-align: center;
             min-width: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-around;
         }
 
         .wave-dir-arrow {
             font-size: 0.8rem;
             color: var(--accent-wave);
             font-weight: bold;
+            height: 20px;
+            line-height: 20px;
         }
 
         .wind-val {
             font-size: 0.7rem;
             font-weight: 700;
             color: var(--accent-wind);
-            margin-top: 4px;
+            height: 20px;
+            line-height: 20px;
         }
 
         .wind-arrow {
             font-size: 0.85rem;
-            margin-top: 1px;
             color: var(--text-primary);
+            height: 20px;
+            line-height: 20px;
         }
 
         .controls {
@@ -178,12 +223,12 @@
         <div class="metric-card">
             <div class="metric-label">潮位</div>
             <div class="metric-value tide" id="currentTide">--</div>
-            <div class="metric-sub">海面高度</div>
+            <div class="metric-sub" id="tideForecast">--</div>
         </div>
         <div class="metric-card">
             <div class="metric-label">風速・風向</div>
             <div class="metric-value wind" id="currentWind">--</div>
-            <div class="metric-sub" id="currentWindDir">--</div>
+            <div id="windTypeBadge" class="wind-badge">--</div>
         </div>
     </div>
 
@@ -194,7 +239,14 @@
             <div class="canvas-container">
                 <canvas id="marineChart"></canvas>
             </div>
-            <div class="timeline-container" id="timelineContainer"></div>
+            <div class="timeline-wrapper">
+                <div class="timeline-labels">
+                    <div class="label-wave">波向</div>
+                    <div class="label-wind-val">風速</div>
+                    <div>風向</div>
+                </div>
+                <div class="timeline-data" id="timelineData"></div>
+            </div>
         </div>
     </div>
 
@@ -206,12 +258,53 @@
     <script>
         let myChart = null;
 
+        // 現在時刻 vertical line プラグイン
+        const currentTimeLinePlugin = {
+            id: 'currentTimeLine',
+            afterDraw: (chart) => {
+                const currentIndex = chart.config.options.plugins.currentTimeLineIndex;
+                if (currentIndex === undefined || currentIndex < 0) return;
+
+                const meta = chart.getDatasetMeta(0);
+                if (!meta.data[currentIndex]) return;
+
+                const x = meta.data[currentIndex].x;
+                const topY = chart.scales.yWave.top;
+                const bottomY = chart.scales.yWave.bottom;
+
+                const ctx = chart.ctx;
+                ctx.save();
+                ctx.beginPath();
+                ctx.moveTo(x, topY);
+                ctx.lineTo(x, bottomY);
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = '#ef4444'; // 赤色で現在時刻ラインを表示
+                ctx.setLineDash([4, 4]);
+                ctx.stroke();
+                ctx.restore();
+            }
+        };
+
+        Chart.register(currentTimeLinePlugin);
+
         function getDirectionInfo(deg) {
             if (deg === null || deg === undefined) return { text: '--', arrow: '' };
             const directions = ['北', '北北東', '北東', '東北東', '東', '東南東', '南東', '南南東', '南', '南南西', '南西', '西南西', '西', '西北西', '北西', '北北西'];
             const arrows = ['↓', '↙', '↙', '↙', '←', '↖', '↖', '↖', '↑', '↗', '↗', '↗', '→', '↘', '↘', '↘'];
             const index = Math.round(deg / 22.5) % 16;
             return { text: directions[index], arrow: arrows[index] };
+        }
+
+        // 磯ノ浦の風質判定（北〜北東がオフショア）
+        function getWindType(deg) {
+            if (deg === null || deg === undefined) return { text: '--', class: '' };
+            if (deg >= 337.5 || deg <= 67.5) {
+                return { text: 'オフショア (面良)', class: 'badge-offshore' };
+            } else if (deg >= 157.5 && deg <= 247.5) {
+                return { text: 'オンショア (面荒)', class: 'badge-onshore' };
+            } else {
+                return { text: 'クロス (横風)', class: 'badge-cross' };
+            }
         }
 
         async function fetchData() {
@@ -247,17 +340,12 @@
             const windSpeeds = weather.hourly.wind_speed_10m.map(v => v !== null ? (v / 3.6).toFixed(1) : null);
             const windDirections = weather.hourly.wind_direction_10m;
 
-            // ラベルフォーマット：0時は「月/日」、それ以外は数字のみ
             const labels = times.map(t => {
                 const d = new Date(t);
                 const month = d.getMonth() + 1;
                 const date = d.getDate();
                 const hours = d.getHours();
-                
-                if (hours === 0) {
-                    return `${month}/${date}`;
-                }
-                return `${hours}`;
+                return hours === 0 ? `${month}/${date}` : `${hours}`;
             });
 
             const now = new Date();
@@ -276,35 +364,41 @@
             const curTide = seaLevels[currentIndex] !== null ? seaLevels[currentIndex].toFixed(2) : '--';
             const curWindSpeed = windSpeeds[currentIndex] !== null ? windSpeeds[currentIndex] : '--';
             const curWindDirDeg = windDirections[currentIndex];
-            const windInfo = getDirectionInfo(curWindDirDeg);
-            
+            const windType = getWindType(curWindDirDeg);
+
             const todayWaveHeights = waveHeights.slice(0, 24).filter(v => v !== null);
             const maxWaveVal = todayWaveHeights.length > 0 ? Math.max(...todayWaveHeights).toFixed(2) : '--';
+
+            // 次の潮汐ピーク（簡易予測）
+            let tideNotice = '高度 ' + curTide + 'm';
+            if (currentIndex + 6 < seaLevels.length) {
+                const nextLevels = seaLevels.slice(currentIndex, currentIndex + 12);
+                const maxLevel = Math.max(...nextLevels);
+                const minLevel = Math.min(...nextLevels);
+                const isRising = seaLevels[currentIndex + 1] > seaLevels[currentIndex];
+                tideNotice = isRising ? '上げ潮傾向' : '下げ潮傾向';
+            }
 
             document.getElementById('currentWave').textContent = curWave + 'm';
             document.getElementById('maxWave').textContent = '本日最大 ' + maxWaveVal + 'm';
             document.getElementById('currentTide').textContent = curTide + 'm';
+            document.getElementById('tideForecast').textContent = tideNotice;
             document.getElementById('currentWind').textContent = curWindSpeed + 'm/s';
-            document.getElementById('currentWindDir').textContent = `${windInfo.arrow} (${windInfo.text})`;
+            
+            const badgeEl = document.getElementById('windTypeBadge');
+            badgeEl.textContent = windType.text;
+            badgeEl.className = 'wind-badge ' + windType.class;
 
-            renderChart(labels, times, waveHeights, seaLevels);
+            renderChart(labels, times, waveHeights, seaLevels, currentIndex);
             renderTimeline(waveDirections, windSpeeds, windDirections);
         }
 
-        function renderChart(labels, rawTimes, waveData, tideData) {
+        function renderChart(labels, rawTimes, waveData, tideData, currentIndex) {
             const ctx = document.getElementById('marineChart').getContext('2d');
             if (myChart) myChart.destroy();
 
-            const tickFontColors = rawTimes.map(t => {
-                const h = new Date(t).getHours();
-                return (h % 3 === 0) ? '#f8fafc' : '#64748b';
-            });
-
-            const tickFontWeights = rawTimes.map(t => {
-                const h = new Date(t).getHours();
-                return (h % 3 === 0) ? 'bold' : 'normal';
-            });
-
+            const tickFontColors = rawTimes.map(t => (new Date(t).getHours() % 3 === 0) ? '#f8fafc' : '#64748b');
+            const tickFontWeights = rawTimes.map(t => (new Date(t).getHours() % 3 === 0) ? 'bold' : 'normal');
             const tickFontSizes = rawTimes.map(t => {
                 const h = new Date(t).getHours();
                 return (h === 0 || h % 3 === 0) ? 11 : 9;
@@ -342,7 +436,8 @@
                     maintainAspectRatio: false,
                     interaction: { mode: 'index', intersect: false },
                     plugins: {
-                        legend: { labels: { color: '#f8fafc', boxWidth: 12, font: { size: 11 } } }
+                        legend: { labels: { color: '#f8fafc', boxWidth: 12, font: { size: 11 } } },
+                        currentTimeLineIndex: currentIndex
                     },
                     scales: {
                         x: {
@@ -350,15 +445,13 @@
                                 autoSkip: false,
                                 maxRotation: 0, 
                                 font: function(context) {
-                                    const index = context.index;
                                     return {
-                                        size: tickFontSizes[index] || 10,
-                                        weight: tickFontWeights[index] || 'normal'
+                                        size: tickFontSizes[context.index] || 10,
+                                        weight: tickFontWeights[context.index] || 'normal'
                                     };
                                 },
                                 color: function(context) {
-                                    const index = context.index;
-                                    return tickFontColors[index] || '#94a3b8';
+                                    return tickFontColors[context.index] || '#94a3b8';
                                 }
                             },
                             grid: { color: 'rgba(51, 65, 85, 0.3)' }
@@ -385,11 +478,8 @@
         }
 
         function renderTimeline(waveDirs, windSpeeds, windDirs) {
-            const container = document.getElementById('timelineContainer');
+            const container = document.getElementById('timelineData');
             container.innerHTML = '';
-
-            const row = document.createElement('div');
-            row.className = 'timeline-row';
 
             waveDirs.forEach((waveDeg, i) => {
                 const waveInfo = getDirectionInfo(waveDeg);
@@ -399,14 +489,12 @@
                 const col = document.createElement('div');
                 col.className = 'timeline-col';
                 col.innerHTML = `
-                    <div class="wave-dir-arrow" title="波向き">${waveInfo.arrow}</div>
+                    <div class="wave-dir-arrow">${waveInfo.arrow}</div>
                     <div class="wind-val">${windSpeed !== null ? windSpeed : '--'}</div>
                     <div class="wind-arrow">${windInfo.arrow}</div>
                 `;
-                row.appendChild(col);
+                container.appendChild(col);
             });
-
-            container.appendChild(row);
         }
 
         window.addEventListener('DOMContentLoaded', fetchData);
