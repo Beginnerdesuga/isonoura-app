@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>磯の浦 波・潮・風モニター</title>
+    <title>磯ノ浦 波・潮・風モニター</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
@@ -39,6 +39,7 @@
 
         h1 { font-size: 1.2rem; font-weight: 700; }
         .subtitle { font-size: 0.7rem; color: var(--text-secondary); }
+        .location-note { font-size: 0.65rem; color: #64748b; margin-top: 2px; }
 
         .metrics-grid {
             display: grid;
@@ -89,26 +90,37 @@
             position: relative;
         }
 
-        /* 風予報タイムライン */
-        .wind-timeline {
-            display: flex;
+        /* タイムライン領域（波向き＆風予報） */
+        .timeline-container {
             border-top: 1px dashed var(--border-color);
-            padding-top: 8px;
+            padding-top: 6px;
             margin-top: 4px;
             padding-left: 50px;
             padding-right: 50px;
         }
 
-        .wind-col {
+        .timeline-row {
+            display: flex;
+            align-items: center;
+        }
+
+        .timeline-col {
             flex: 1;
             text-align: center;
             min-width: 0;
+        }
+
+        .wave-dir-arrow {
+            font-size: 0.8rem;
+            color: var(--accent-wave);
+            font-weight: bold;
         }
 
         .wind-val {
             font-size: 0.7rem;
             font-weight: 700;
             color: var(--accent-wind);
+            margin-top: 4px;
         }
 
         .wind-arrow {
@@ -152,8 +164,9 @@
 <body>
 
     <header>
-        <h1>🌊 磯の浦コンディション</h1>
+        <h1>🌊 磯ノ浦コンディション</h1>
         <p class="subtitle">Open-Meteo API リアルタイム連携</p>
+        <p class="location-note">※ 観測地点: 北緯34.25, 東経135.08（磯ノ浦沖約1km）</p>
     </header>
 
     <div class="metrics-grid">
@@ -181,7 +194,7 @@
             <div class="canvas-container">
                 <canvas id="marineChart"></canvas>
             </div>
-            <div class="wind-timeline" id="windTimeline"></div>
+            <div class="timeline-container" id="timelineContainer"></div>
         </div>
     </div>
 
@@ -193,7 +206,8 @@
     <script>
         let myChart = null;
 
-        function getWindDirection(deg) {
+        function getDirectionInfo(deg) {
+            if (deg === null || deg === undefined) return { text: '--', arrow: '' };
             const directions = ['北', '北北東', '北東', '東北東', '東', '東南東', '南東', '南南東', '南', '南南西', '南西', '西南西', '西', '西北西', '北西', '北北西'];
             const arrows = ['↓', '↙', '↙', '↙', '←', '↖', '↖', '↖', '↑', '↗', '↗', '↗', '→', '↘', '↘', '↘'];
             const index = Math.round(deg / 22.5) % 16;
@@ -204,7 +218,7 @@
             const loadingEl = document.getElementById('loading');
             loadingEl.style.display = 'flex';
 
-            const urlMarine = 'https://marine-api.open-meteo.com/v1/marine?latitude=34.25&longitude=135.08&hourly=wave_height,sea_level_height_msl&timezone=Asia%2FTokyo&forecast_days=3';
+            const urlMarine = 'https://marine-api.open-meteo.com/v1/marine?latitude=34.25&longitude=135.08&hourly=wave_height,wave_direction,sea_level_height_msl&timezone=Asia%2FTokyo&forecast_days=3';
             const urlWeather = 'https://api.open-meteo.com/v1/forecast?latitude=34.25&longitude=135.08&hourly=wind_speed_10m,wind_direction_10m&timezone=Asia%2FTokyo&forecast_days=3';
 
             try {
@@ -228,11 +242,12 @@
         function processAndRender(marine, weather) {
             const times = marine.hourly.time;
             const waveHeights = marine.hourly.wave_height;
+            const waveDirections = marine.hourly.wave_direction;
             const seaLevels = marine.hourly.sea_level_height_msl;
             const windSpeeds = weather.hourly.wind_speed_10m.map(v => v !== null ? (v / 3.6).toFixed(1) : null);
             const windDirections = weather.hourly.wind_direction_10m;
 
-            // ラベルフォーマット処理：0時は「月/日」、それ以外は数字のみ
+            // ラベルフォーマット：0時は「月/日」、それ以外は数字のみ
             const labels = times.map(t => {
                 const d = new Date(t);
                 const month = d.getMonth() + 1;
@@ -261,7 +276,7 @@
             const curTide = seaLevels[currentIndex] !== null ? seaLevels[currentIndex].toFixed(2) : '--';
             const curWindSpeed = windSpeeds[currentIndex] !== null ? windSpeeds[currentIndex] : '--';
             const curWindDirDeg = windDirections[currentIndex];
-            const windInfo = curWindDirDeg !== null ? getWindDirection(curWindDirDeg) : { text: '--', arrow: '' };
+            const windInfo = getDirectionInfo(curWindDirDeg);
             
             const todayWaveHeights = waveHeights.slice(0, 24).filter(v => v !== null);
             const maxWaveVal = todayWaveHeights.length > 0 ? Math.max(...todayWaveHeights).toFixed(2) : '--';
@@ -273,17 +288,16 @@
             document.getElementById('currentWindDir').textContent = `${windInfo.arrow} (${windInfo.text})`;
 
             renderChart(labels, times, waveHeights, seaLevels);
-            renderWindTimeline(windSpeeds, windDirections);
+            renderTimeline(waveDirections, windSpeeds, windDirections);
         }
 
         function renderChart(labels, rawTimes, waveData, tideData) {
             const ctx = document.getElementById('marineChart').getContext('2d');
             if (myChart) myChart.destroy();
 
-            // 3時間ごとの太字・カラー強調設定
             const tickFontColors = rawTimes.map(t => {
                 const h = new Date(t).getHours();
-                return (h % 3 === 0) ? '#f8fafc' : '#64748b'; // 3の倍数時間は明るく、それ以外は少し薄く
+                return (h % 3 === 0) ? '#f8fafc' : '#64748b';
             });
 
             const tickFontWeights = rawTimes.map(t => {
@@ -333,7 +347,7 @@
                     scales: {
                         x: {
                             ticks: { 
-                                autoSkip: false, /* すべての1時間刻みをカットせず表示 */
+                                autoSkip: false,
                                 maxRotation: 0, 
                                 font: function(context) {
                                     const index = context.index;
@@ -370,22 +384,29 @@
             });
         }
 
-        function renderWindTimeline(speeds, directions) {
-            const container = document.getElementById('windTimeline');
+        function renderTimeline(waveDirs, windSpeeds, windDirs) {
+            const container = document.getElementById('timelineContainer');
             container.innerHTML = '';
 
-            speeds.forEach((speed, i) => {
-                const dirDeg = directions[i];
-                const info = dirDeg !== null ? getWindDirection(dirDeg) : { arrow: '' };
+            const row = document.createElement('div');
+            row.className = 'timeline-row';
+
+            waveDirs.forEach((waveDeg, i) => {
+                const waveInfo = getDirectionInfo(waveDeg);
+                const windSpeed = windSpeeds[i];
+                const windInfo = getDirectionInfo(windDirs[i]);
 
                 const col = document.createElement('div');
-                col.className = 'wind-col';
+                col.className = 'timeline-col';
                 col.innerHTML = `
-                    <div class="wind-val">${speed !== null ? speed : '--'}</div>
-                    <div class="wind-arrow">${info.arrow}</div>
+                    <div class="wave-dir-arrow" title="波向き">${waveInfo.arrow}</div>
+                    <div class="wind-val">${windSpeed !== null ? windSpeed : '--'}</div>
+                    <div class="wind-arrow">${windInfo.arrow}</div>
                 `;
-                container.appendChild(col);
+                row.appendChild(col);
             });
+
+            container.appendChild(row);
         }
 
         window.addEventListener('DOMContentLoaded', fetchData);
