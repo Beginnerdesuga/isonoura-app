@@ -119,29 +119,29 @@
         }
 
         .sticky-wave-area {
-            height: 300px; /* Canvasと高さを合わせる */
-            display: flex;
-            border-bottom: 1px dashed var(--border-color);
+            height: 300px;
             position: relative;
+            border-bottom: 1px dashed var(--border-color);
         }
 
+        /* 波高(m)ラベルを一番上に配置 */
         .sticky-label-wave {
-            width: 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            position: absolute;
+            top: 4px;
+            left: 6px;
             font-size: 0.65rem;
             font-weight: bold;
             color: var(--accent-wave);
-            writing-mode: vertical-rl;
-            text-orientation: upright;
-            letter-spacing: 2px;
+            z-index: 2;
         }
 
-        /* 固定目盛り数字エリア */
+        /* 固定目盛り数値エリア */
         .sticky-wave-ticks {
-            flex-grow: 1;
-            position: relative;
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            right: 0;
             font-size: 0.6rem;
             color: var(--accent-wave);
             font-weight: 600;
@@ -149,7 +149,7 @@
 
         .sticky-tick {
             position: absolute;
-            right: 4px;
+            right: 6px;
             transform: translateY(50%);
         }
 
@@ -288,13 +288,11 @@
     <div class="chart-card">
         <div id="loading" class="loading-overlay">取得中...</div>
         
-        <!-- 左固定エリア（波高見出し + 固定目盛り + タイムライン見出し） -->
+        <!-- 左固定エリア -->
         <div class="sticky-left-column">
             <div class="sticky-wave-area">
-                <div class="sticky-label-wave">波高</div>
-                <div class="sticky-wave-ticks" id="stickyWaveTicks">
-                    <!-- JSでグラフ描画領域に完全に合わせた数値目盛りを動的生成 -->
-                </div>
+                <div class="sticky-label-wave">波高(m)</div>
+                <div class="sticky-wave-ticks" id="stickyWaveTicks"></div>
             </div>
             <div class="sticky-timeline-labels">
                 <div class="label-wave-dir">波向</div>
@@ -349,7 +347,7 @@
             }
         };
 
-        // 固定目盛りの同期プラグイン
+        // 固定目盛りの同期プラグイン（yWave軸の描画位置と完全に合わせる）
         const syncStickyTicksPlugin = {
             id: 'syncStickyTicks',
             afterRender: (chart) => {
@@ -364,7 +362,7 @@
 
                 ticks.forEach(tick => {
                     const yPixel = scale.getPixelForValue(tick.value);
-                    const bottomPos = chartHeight - yPixel - 10; /* CSS padding補正 */
+                    const bottomPos = chartHeight - yPixel;
 
                     const tickDiv = document.createElement('div');
                     tickDiv.className = 'sticky-tick';
@@ -481,6 +479,10 @@
             const ctx = document.getElementById('marineChart').getContext('2d');
             if (myChart) myChart.destroy();
 
+            // 3日間の最大波高に応じて上限を動的に決定（最低2.0m、それ以上は実データに合わせて拡張）
+            const maxWaveVal = Math.max(...waveData.filter(v => v !== null), 0);
+            const targetMax = maxWaveVal > 2.0 ? Math.ceil(maxWaveVal * 1.1 * 10) / 10 : 2.0;
+
             const tickFontColors = rawTimes.map(t => (new Date(t).getHours() % 3 === 0) ? '#f8fafc' : '#64748b');
             const tickFontWeights = rawTimes.map(t => (new Date(t).getHours() % 3 === 0) ? 'bold' : 'normal');
             const tickFontSizes = rawTimes.map(t => {
@@ -520,7 +522,7 @@
                     maintainAspectRatio: false,
                     interaction: { mode: 'index', intersect: false },
                     plugins: {
-                        legend: { labels: { color: '#f8fafc', boxWidth: 12, font: { size: 11 } } },
+                        legend: { display: false }, /* 固定エリアに波高(m)を置いたため凡例は非表示にしグラフエリアを広げる */
                         currentTimeLineIndex: currentIndex
                     },
                     scales: {
@@ -543,9 +545,9 @@
                         yWave: {
                             type: 'linear',
                             position: 'left',
-                            display: false, /* グラフ内の目盛りは非表示にし、左固定枠へ描画 */
+                            display: false,
                             beginAtZero: true,
-                            suggestedMax: 2.0
+                            max: targetMax
                         },
                         yTide: {
                             type: 'linear',
