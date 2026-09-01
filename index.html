@@ -118,18 +118,39 @@
             padding-bottom: 10px;
         }
 
+        .sticky-wave-area {
+            height: 300px; /* Canvasと高さを合わせる */
+            display: flex;
+            border-bottom: 1px dashed var(--border-color);
+            position: relative;
+        }
+
         .sticky-label-wave {
-            height: 300px; /* Canvasの高さ(300px)と正確に合わせる */
+            width: 20px;
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: 0.65rem;
             font-weight: bold;
             color: var(--accent-wave);
-            border-bottom: 1px dashed var(--border-color);
             writing-mode: vertical-rl;
             text-orientation: upright;
             letter-spacing: 2px;
+        }
+
+        /* 固定目盛り数字エリア */
+        .sticky-wave-ticks {
+            flex-grow: 1;
+            position: relative;
+            font-size: 0.6rem;
+            color: var(--accent-wave);
+            font-weight: 600;
+        }
+
+        .sticky-tick {
+            position: absolute;
+            right: 4px;
+            transform: translateY(50%);
         }
 
         .sticky-timeline-labels {
@@ -267,8 +288,14 @@
     <div class="chart-card">
         <div id="loading" class="loading-overlay">取得中...</div>
         
+        <!-- 左固定エリア（波高見出し + 固定目盛り + タイムライン見出し） -->
         <div class="sticky-left-column">
-            <div class="sticky-label-wave">波高</div>
+            <div class="sticky-wave-area">
+                <div class="sticky-label-wave">波高</div>
+                <div class="sticky-wave-ticks" id="stickyWaveTicks">
+                    <!-- JSでグラフ描画領域に完全に合わせた数値目盛りを動的生成 -->
+                </div>
+            </div>
             <div class="sticky-timeline-labels">
                 <div class="label-wave-dir">波向</div>
                 <div class="label-wind-val">風速</div>
@@ -322,7 +349,33 @@
             }
         };
 
-        Chart.register(currentTimeLinePlugin);
+        // 固定目盛りの同期プラグイン
+        const syncStickyTicksPlugin = {
+            id: 'syncStickyTicks',
+            afterRender: (chart) => {
+                const scale = chart.scales.yWave;
+                if (!scale) return;
+
+                const container = document.getElementById('stickyWaveTicks');
+                container.innerHTML = '';
+
+                const ticks = scale.ticks;
+                const chartHeight = chart.height;
+
+                ticks.forEach(tick => {
+                    const yPixel = scale.getPixelForValue(tick.value);
+                    const bottomPos = chartHeight - yPixel - 10; /* CSS padding補正 */
+
+                    const tickDiv = document.createElement('div');
+                    tickDiv.className = 'sticky-tick';
+                    tickDiv.style.bottom = bottomPos + 'px';
+                    tickDiv.textContent = tick.value.toFixed(1);
+                    container.appendChild(tickDiv);
+                });
+            }
+        };
+
+        Chart.register(currentTimeLinePlugin, syncStickyTicksPlugin);
 
         function getDirectionInfo(deg) {
             if (deg === null || deg === undefined) return { text: '--', arrow: '' };
@@ -490,9 +543,7 @@
                         yWave: {
                             type: 'linear',
                             position: 'left',
-                            display: true,
-                            ticks: { color: '#38bdf8', font: { size: 9 } },
-                            grid: { color: 'rgba(51, 65, 85, 0.3)' },
+                            display: false, /* グラフ内の目盛りは非表示にし、左固定枠へ描画 */
                             beginAtZero: true,
                             suggestedMax: 2.0
                         },
