@@ -93,7 +93,7 @@
         .chart-scroll-wrapper {
             overflow-x: auto;
             -webkit-overflow-scrolling: touch;
-            padding: 10px 0;
+            padding: 24px 0 10px 0; /* ラベル退避用に上部余白を確保 */
         }
 
         .chart-inner {
@@ -105,34 +105,34 @@
         .sticky-left-column {
             position: absolute;
             left: 0;
-            top: 0;
+            top: 24px; /* 上部余白と合わせる */
             bottom: 0;
-            width: 58px;
+            width: 60px; /* 目盛りと被らない60pxに拡幅 */
             background-color: var(--card-bg);
             z-index: 10;
             border-right: 1px solid var(--border-color);
             display: flex;
             flex-direction: column;
             pointer-events: none;
-            padding-top: 10px;
             padding-bottom: 10px;
         }
 
         .sticky-wave-area {
-            height: 324px;
+            height: 386px; /* 380px(グラフ) + 6px(余白) で右点線とピッタリ同期 */
             position: relative;
             border-bottom: 1px dashed var(--border-color);
         }
 
-        /* 波高(m)ラベルを一番上に配置 */
+        /* 波高(m)ラベルを枠上の外側に完全退避 */
         .sticky-label-wave {
             position: absolute;
-            top: -16px;
+            top: -18px;
             left: 6px;
-            font-size: 0.65rem;
+            font-size: 0.7rem;
             font-weight: bold;
             color: var(--accent-wave);
-            z-index: 2;
+            white-space: nowrap;
+            z-index: 10;
         }
 
         /* 固定目盛り数値エリア */
@@ -149,7 +149,7 @@
 
         .sticky-tick {
             position: absolute;
-            right: 6px;
+            right: 8px;
             transform: translateY(50%);
         }
 
@@ -174,9 +174,9 @@
         .sticky-timeline-labels .label-wind-val { color: var(--accent-wind); }
 
         .canvas-container {
-            height: 400px;
+            height: 380px; /* グラフ高さを380pxに引き伸ばし */
             position: relative;
-            padding-left: 58px;
+            padding-left: 60px; /* 固定幅に合わせて左余白を変更 */
         }
 
         .timeline-wrapper {
@@ -184,7 +184,7 @@
             border-top: 1px dashed var(--border-color);
             margin-top: 6px;
             padding-top: 6px;
-            padding-left: 58px;
+            padding-left: 60px;
         }
 
         .timeline-data {
@@ -288,7 +288,6 @@
     <div class="chart-card">
         <div id="loading" class="loading-overlay">取得中...</div>
         
-        <!-- 左固定エリア -->
         <div class="sticky-left-column">
             <div class="sticky-wave-area">
                 <div class="sticky-label-wave">波高(m)</div>
@@ -347,7 +346,7 @@
             }
         };
 
-        // 固定目盛りの同期プラグイン（yWave軸の描画位置と完全に合わせる）
+        // 固定目盛りの同期プラグイン（yWave軸の描画位置と位置修正を同期）
         const syncStickyTicksPlugin = {
             id: 'syncStickyTicks',
             afterRender: (chart) => {
@@ -479,7 +478,6 @@
             const ctx = document.getElementById('marineChart').getContext('2d');
             if (myChart) myChart.destroy();
 
-            // 3日間の最大波高に応じて上限を動的に決定（最低2.0m、それ以上は実データに合わせて拡張）
             const maxWaveVal = Math.max(...waveData.filter(v => v !== null), 0);
             const targetMax = maxWaveVal > 2.0 ? Math.ceil(maxWaveVal * 1.1 * 10) / 10 : 2.0;
 
@@ -522,7 +520,7 @@
                     maintainAspectRatio: false,
                     interaction: { mode: 'index', intersect: false },
                     plugins: {
-                        legend: { display: false }, /* 固定エリアに波高(m)を置いたため凡例は非表示にしグラフエリアを広げる */
+                        legend: { display: false },
                         currentTimeLineIndex: currentIndex
                     },
                     scales: {
