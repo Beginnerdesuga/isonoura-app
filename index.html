@@ -82,7 +82,6 @@
             margin-bottom: 4px;
         }
 
-        /* 外部コンテナ */
         .chart-card {
             background-color: var(--card-bg);
             border: 1px solid var(--border-color);
@@ -108,7 +107,7 @@
             left: 0;
             top: 0;
             bottom: 0;
-            width: 54px;
+            width: 58px;
             background-color: var(--card-bg);
             z-index: 10;
             border-right: 1px solid var(--border-color);
@@ -120,7 +119,7 @@
         }
 
         .sticky-label-wave {
-            height: 275px;
+            height: 300px; /* Canvasの高さ(300px)と正確に合わせる */
             display: flex;
             align-items: center;
             justify-content: center;
@@ -128,18 +127,26 @@
             font-weight: bold;
             color: var(--accent-wave);
             border-bottom: 1px dashed var(--border-color);
+            writing-mode: vertical-rl;
+            text-orientation: upright;
+            letter-spacing: 2px;
         }
 
         .sticky-timeline-labels {
-            flex-grow: 1;
+            margin-top: 6px;
+            padding-top: 6px;
             display: flex;
             flex-direction: column;
-            justify-content: space-around;
-            padding: 4px 0;
+            gap: 0;
             font-size: 0.65rem;
             font-weight: 600;
             color: var(--text-secondary);
             text-align: center;
+        }
+
+        .sticky-timeline-labels div {
+            height: 20px;
+            line-height: 20px;
         }
 
         .sticky-timeline-labels .label-wave-dir { color: var(--accent-wave); }
@@ -148,16 +155,15 @@
         .canvas-container {
             height: 300px;
             position: relative;
-            padding-left: 54px; /* 固定列の幅ぶん右へずらす */
+            padding-left: 58px;
         }
 
-        /* タイムライン領域（波向・風速・風向） */
         .timeline-wrapper {
             display: flex;
             border-top: 1px dashed var(--border-color);
             margin-top: 6px;
             padding-top: 6px;
-            padding-left: 54px; /* 固定列の幅ぶん右へずらす */
+            padding-left: 58px;
         }
 
         .timeline-data {
@@ -172,7 +178,7 @@
             min-width: 0;
             display: flex;
             flex-direction: column;
-            justify-content: space-around;
+            gap: 0;
         }
 
         .wave-dir-arrow {
@@ -290,7 +296,6 @@
     <script>
         let myChart = null;
 
-        // 現在時刻 vertical line プラグイン
         const currentTimeLinePlugin = {
             id: 'currentTimeLine',
             afterDraw: (chart) => {
@@ -485,7 +490,9 @@
                         yWave: {
                             type: 'linear',
                             position: 'left',
-                            display: false, /* 目盛りは固定列で対応するため隠す */
+                            display: true,
+                            ticks: { color: '#38bdf8', font: { size: 9 } },
+                            grid: { color: 'rgba(51, 65, 85, 0.3)' },
                             beginAtZero: true,
                             suggestedMax: 2.0
                         },
@@ -525,4 +532,3 @@
     </script>
 </body>
 </html>
-
