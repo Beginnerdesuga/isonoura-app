@@ -15,6 +15,7 @@
             --accent-tide: #fb923c;
             --accent-wind: #4ade80;
             --border-color: #334155;
+            --axis-width: 42px; /* 左右の軸幅を42pxに完全固定 */
         }
 
         * {
@@ -111,13 +112,13 @@
             position: relative;
         }
 
-        /* 左側固定列（幅42px） */
+        /* 左側画面固定列（幅42px） */
         .sticky-left-column {
             position: absolute;
             left: 0;
             top: 24px;
             bottom: 0;
-            width: 42px;
+            width: var(--axis-width);
             background-color: var(--card-bg);
             z-index: 10;
             border-right: 1px solid var(--border-color);
@@ -125,22 +126,6 @@
             flex-direction: column;
             pointer-events: none;
             padding-bottom: 10px;
-        }
-
-        /* 右側「潮位(m)」スクロール連動ラベル（幅42px・グラフ右端に配置） */
-        .sticky-right-label {
-            position: absolute;
-            right: 0;
-            top: -18px;
-            width: 42px;
-            text-align: right;
-            padding-right: 4px;
-            font-size: 0.65rem;
-            font-weight: bold;
-            color: var(--accent-tide);
-            z-index: 10;
-            pointer-events: none;
-            white-space: nowrap;
         }
 
         .sticky-wave-area {
@@ -197,18 +182,38 @@
         .sticky-timeline-labels .label-wave-dir { color: var(--accent-wave); }
         .sticky-timeline-labels .label-wind-val { color: var(--accent-wind); }
 
+        /* 右上「潮位(m)」ラベル（幅42px・グラフ右端に配置） */
+        .sticky-right-label {
+            position: absolute;
+            right: 0;
+            top: -18px;
+            width: var(--axis-width);
+            text-align: right;
+            padding-right: 4px;
+            font-size: 0.65rem;
+            font-weight: bold;
+            color: var(--accent-tide);
+            z-index: 10;
+            pointer-events: none;
+            white-space: nowrap;
+        }
+
+        /* グラフキャンバスコンテナ：左右余白をパディング42pxで確実に確保 */
         .canvas-container {
             height: 380px;
             position: relative;
+            padding-left: var(--axis-width);
+            padding-right: var(--axis-width);
         }
 
+        /* 下部タイムライン：左右余白をパディング42pxで確実に確保 */
         .timeline-wrapper {
             display: flex;
             border-top: 1px dashed var(--border-color);
             margin-top: 6px;
             padding-top: 6px;
-            padding-left: 42px;
-            padding-right: 42px;
+            padding-left: var(--axis-width);
+            padding-right: var(--axis-width);
         }
 
         .timeline-data {
@@ -330,7 +335,6 @@
 
         <div class="chart-scroll-wrapper">
             <div class="chart-inner">
-                <!-- 右側「潮位(m)」スクロール連動ラベル -->
                 <div class="sticky-right-label">潮位(m)</div>
                 <div class="canvas-container">
                     <canvas id="marineChart"></canvas>
@@ -393,6 +397,7 @@
             }
         };
 
+        // 左側HTML目盛り（粘着表示）の位置をChart.jsのY軸スケールと自動同期するプラグイン
         const syncStickyTicksPlugin = {
             id: 'syncStickyTicks',
             afterRender: (chart) => {
@@ -600,6 +605,9 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    layout: {
+                        padding: 0 /* 余白はすべてCSS側(42px)で一括コントロール */
+                    },
                     onClick: (e, elements) => {
                         if (elements.length > 0) {
                             selectIndex(elements[0].index);
@@ -630,20 +638,17 @@
                         yWave: {
                             type: 'linear',
                             position: 'left',
-                            display: true,
-                            afterFit: (axis) => { axis.width = 42; },
+                            display: false, /* Chart.js自体の目盛り描画を完全無効化しCSSパディングと一致させる */
                             beginAtZero: true,
-                            max: targetMax,
-                            ticks: { display: false },
-                            grid: { drawOnChartArea: false }
+                            max: targetMax
                         },
                         yTide: {
                             type: 'linear',
                             position: 'right',
                             display: true,
-                            afterFit: (axis) => { axis.width = 42; },
+                            afterFit: (axis) => { axis.width = 0; }, /* Chart.jsの軸描画領域を0pxにして右側目盛りテキストを右パディング42px内に表示させる */
                             title: { display: false },
-                            ticks: { color: '#fb923c' },
+                            ticks: { color: '#fb923c', padding: 4 },
                             grid: { drawOnChartArea: false }
                         }
                     }
