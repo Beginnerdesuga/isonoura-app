@@ -15,7 +15,7 @@
             --accent-tide: #fb923c;
             --accent-wind: #4ade80;
             --border-color: #334155;
-            --axis-width: 42px; /* 左右の軸幅を42pxに完全固定 */
+            --axis-width: 42px;
         }
 
         * {
@@ -112,7 +112,6 @@
             position: relative;
         }
 
-        /* 左側画面固定列（幅42px） */
         .sticky-left-column {
             position: absolute;
             left: 0;
@@ -182,7 +181,6 @@
         .sticky-timeline-labels .label-wave-dir { color: var(--accent-wave); }
         .sticky-timeline-labels .label-wind-val { color: var(--accent-wind); }
 
-        /* 右上「潮位(m)」ラベル（幅42px・グラフ右端に配置） */
         .sticky-right-label {
             position: absolute;
             right: 0;
@@ -198,7 +196,6 @@
             white-space: nowrap;
         }
 
-        /* グラフキャンバスコンテナ：左右余白をパディング42pxで確実に確保 */
         .canvas-container {
             height: 380px;
             position: relative;
@@ -206,7 +203,6 @@
             padding-right: var(--axis-width);
         }
 
-        /* 下部タイムライン：左右余白をパディング42pxで確実に確保 */
         .timeline-wrapper {
             display: flex;
             border-top: 1px dashed var(--border-color);
@@ -320,7 +316,6 @@
     <div class="chart-card">
         <div id="loading" class="loading-overlay">取得中...</div>
         
-        <!-- 左固定エリア（幅42px） -->
         <div class="sticky-left-column">
             <div class="sticky-wave-area">
                 <div class="sticky-label-wave">波高(m)</div>
@@ -357,7 +352,6 @@
         let selectedIndex = 0;
         let nowIndex = 0;
 
-        // 現在地の赤点線 ＆ タップ選択された青点線を描画するプラグイン
         const timeLineLinesPlugin = {
             id: 'timeLineLines',
             afterDraw: (chart) => {
@@ -366,7 +360,6 @@
                 const bottomY = chart.scales.yWave.bottom;
                 const ctx = chart.ctx;
 
-                // 1. 現在地の赤点線を常時描画
                 if (nowIndex >= 0 && meta.data[nowIndex]) {
                     const xNow = meta.data[nowIndex].x;
                     ctx.save();
@@ -380,7 +373,6 @@
                     ctx.restore();
                 }
 
-                // 2. タップで選択された位置（現在地と異なる場合）に青点線を描画
                 const targetIndex = chart.config.options.plugins.targetIndex;
                 if (targetIndex !== undefined && targetIndex !== nowIndex && meta.data[targetIndex]) {
                     const xTarget = meta.data[targetIndex].x;
@@ -397,7 +389,6 @@
             }
         };
 
-        // 左側HTML目盛り（粘着表示）の位置をChart.jsのY軸スケールと自動同期するプラグイン
         const syncStickyTicksPlugin = {
             id: 'syncStickyTicks',
             afterRender: (chart) => {
@@ -606,7 +597,7 @@
                     responsive: true,
                     maintainAspectRatio: false,
                     layout: {
-                        padding: 0 /* 余白はすべてCSS側(42px)で一括コントロール */
+                        padding: 0
                     },
                     onClick: (e, elements) => {
                         if (elements.length > 0) {
@@ -638,26 +629,23 @@
                         yWave: {
                             type: 'linear',
                             position: 'left',
-                            display: false, /* Chart.js自体の目盛り描画を完全無効化しCSSパディングと一致させる */
+                            display: false,
                             beginAtZero: true,
                             max: targetMax
                         },
-
                         yTide: {
-    type: 'linear',
-    position: 'right',
-    display: true,
-    afterFit: (axis) => { axis.width = 0; },
-    title: { display: false },
-    ticks: { 
-        color: '#fb923c', 
-        padding: 4,
-        font: { size: 10 } /* ← この1行を追加 */
-    },
-    grid: { drawOnChartArea: false }
-}
-
-                                             
+                            type: 'linear',
+                            position: 'right',
+                            display: true,
+                            afterFit: (axis) => { axis.width = 0; },
+                            title: { display: false },
+                            ticks: { 
+                                color: '#fb923c', 
+                                padding: 4,
+                                font: { size: 9.6, weight: '600' } /* 右側（潮位）目盛りのフォントサイズを左側と完全統一 */
+                            },
+                            grid: { drawOnChartArea: false }
+                        }
                     }
                 }
             });
