@@ -98,12 +98,43 @@
             border-radius: 12px;
             position: relative;
             overflow: hidden;
+            padding-top: 10px;
+            padding-bottom: 10px;
         }
+
+        /* 凡例（上部配置・横書き・スリム化） */
+        .chart-legend-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 14px 8px 14px;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 6px;
+        }
+
+        .legend-item {
+            font-size: 0.7rem;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .legend-color-box {
+            width: 12px;
+            height: 8px;
+            border-radius: 2px;
+        }
+
+        .legend-wave { color: var(--accent-wave); }
+        .legend-wave .legend-color-box { background-color: var(--accent-wave); }
+        .legend-tide { color: var(--accent-tide); }
+        .legend-tide .legend-color-box { background-color: var(--accent-tide); border-top: 2px solid var(--accent-tide); }
 
         .chart-scroll-wrapper {
             overflow-x: auto;
             -webkit-overflow-scrolling: touch;
-            padding: 10px 0;
+            position: relative;
         }
 
         .chart-inner {
@@ -114,6 +145,36 @@
         .canvas-container {
             height: 380px;
             position: relative;
+        }
+
+        /* HTMLテキストによる左軸固定（手法A） */
+        .sticky-y-axis {
+            position: sticky;
+            left: 0;
+            top: 0;
+            width: 42px;
+            height: 380px;
+            z-index: 10;
+            background-color: var(--card-bg);
+            border-right: 1px solid rgba(51, 65, 85, 0.4);
+            pointer-events: none;
+            float: left;
+        }
+
+        .sticky-y-axis-ticks {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+        }
+
+        .y-tick-item {
+            position: absolute;
+            right: 6px;
+            transform: translateY(-50%);
+            font-size: 10px;
+            font-weight: 600;
+            color: var(--accent-wave);
+            line-height: 1;
         }
 
         .timeline-wrapper {
@@ -229,9 +290,25 @@
     <div class="chart-card">
         <div id="loading" class="loading-overlay">取得中...</div>
 
+        <!-- 上部配置の凡例 -->
+        <div class="chart-legend-header">
+            <div class="legend-item legend-wave">
+                <span class="legend-color-box"></span>
+                <span>波高 (m)</span>
+            </div>
+            <div class="legend-item legend-tide">
+                <span class="legend-color-box"></span>
+                <span>潮位 (m)</span>
+            </div>
+        </div>
+
         <div class="chart-scroll-wrapper">
             <div class="chart-inner">
                 <div class="canvas-container">
+                    <!-- HTML固定のY軸目盛りエリア -->
+                    <div class="sticky-y-axis">
+                        <div class="sticky-y-axis-ticks" id="stickyAxisTicks"></div>
+                    </div>
                     <canvas id="marineChart"></canvas>
                 </div>
                 <div class="timeline-wrapper">
@@ -252,6 +329,7 @@
         let selectedIndex = 0;
         let nowIndex = 0;
 
+        // 縦線描画プラグイン
         const timeLineLinesPlugin = {
             id: 'timeLineLines',
             afterDraw: (chart) => {
@@ -427,6 +505,23 @@
             renderTimeline(globalData.waveDirections, globalData.windSpeeds, globalData.windDirections);
         }
 
+        function syncStickyYAxis(chart) {
+            const ticksContainer = document.getElementById('stickyAxisTicks');
+            ticksContainer.innerHTML = '';
+            
+            const yScale = chart.scales.yWave;
+            const ticks = yScale.ticks;
+
+            ticks.forEach(tick => {
+                const pixelY = yScale.getPixelForValue(tick.value);
+                const tickEl = document.createElement('div');
+                tickEl.className = 'y-tick-item';
+                tickEl.style.top = `${pixelY}px`;
+                tickEl.textContent = tick.label !== undefined ? tick.label : tick.value;
+                ticksContainer.appendChild(tickEl);
+            });
+        }
+
         function renderChart(labels, rawTimes, waveData, tideData) {
             const ctx = document.getElementById('marineChart').getContext('2d');
             if (myChart) myChart.destroy();
@@ -504,28 +599,15 @@
                             display: true,
                             beginAtZero: true,
                             max: targetMax,
-                            title: {
-                                display: true,
-                                text: '波高(m)',
-                                color: '#38bdf8',
-                                font: { size: 10, weight: 'bold' }
-                            },
-                            ticks: { 
-                                color: '#38bdf8',
-                                font: { size: 10, weight: '600' }
-                            },
+                            title: { display: false },
+                            ticks: { display: false }, // 内部テキスト非表示（固定枠側と同期するため）
                             grid: { color: 'rgba(51, 65, 85, 0.2)' }
                         },
                         yTide: {
                             type: 'linear',
                             position: 'right',
                             display: true,
-                            title: {
-                                display: true,
-                                text: '潮位(m)',
-                                color: '#fb923c',
-                                font: { size: 10, weight: 'bold' }
-                            },
+                            title: { display: false },
                             ticks: { 
                                 color: '#fb923c',
                                 font: { size: 10, weight: '600' }
@@ -533,7 +615,13 @@
                             grid: { drawOnChartArea: false }
                         }
                     }
-                }
+                },
+                plugins: [{
+                    id: 'syncStickyAxisPlugin',
+                    afterRender: (chart) => {
+                        syncStickyYAxis(chart);
+                    }
+                }]
             });
         }
 
