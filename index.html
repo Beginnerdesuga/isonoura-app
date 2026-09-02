@@ -112,6 +112,7 @@
             position: relative;
         }
 
+        /* 左側固定ヘッダーエリア（風向風速ラベル用） */
         .sticky-left-column {
             position: absolute;
             left: 0;
@@ -124,13 +125,11 @@
             display: flex;
             flex-direction: column;
             pointer-events: none;
-            padding-bottom: 10px;
         }
 
         .sticky-wave-area {
-            height: 386px;
+            height: 380px;
             position: relative;
-            border-bottom: 1px dashed var(--border-color);
         }
 
         .sticky-label-wave {
@@ -142,23 +141,6 @@
             color: var(--accent-wave);
             white-space: nowrap;
             z-index: 10;
-        }
-
-        .sticky-wave-ticks {
-            position: absolute;
-            top: 0;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            font-size: 0.6rem;
-            color: var(--accent-wave);
-            font-weight: 600;
-        }
-
-        .sticky-tick {
-            position: absolute;
-            right: 6px;
-            transform: translateY(50%);
         }
 
         .sticky-timeline-labels {
@@ -199,8 +181,6 @@
         .canvas-container {
             height: 380px;
             position: relative;
-            padding-left: var(--axis-width);
-            padding-right: var(--axis-width);
         }
 
         .timeline-wrapper {
@@ -319,7 +299,6 @@
         <div class="sticky-left-column">
             <div class="sticky-wave-area">
                 <div class="sticky-label-wave">波高(m)</div>
-                <div class="sticky-wave-ticks" id="stickyWaveTicks"></div>
             </div>
             <div class="sticky-timeline-labels">
                 <div class="label-wave-dir">波向</div>
@@ -389,32 +368,7 @@
             }
         };
 
-        const syncStickyTicksPlugin = {
-            id: 'syncStickyTicks',
-            afterRender: (chart) => {
-                const scale = chart.scales.yWave;
-                if (!scale) return;
-
-                const container = document.getElementById('stickyWaveTicks');
-                container.innerHTML = '';
-
-                const ticks = scale.ticks;
-                const chartHeight = chart.height;
-
-                ticks.forEach(tick => {
-                    const yPixel = scale.getPixelForValue(tick.value);
-                    const bottomPos = chartHeight - yPixel;
-
-                    const tickDiv = document.createElement('div');
-                    tickDiv.className = 'sticky-tick';
-                    tickDiv.style.bottom = bottomPos + 'px';
-                    tickDiv.textContent = tick.value.toFixed(1);
-                    container.appendChild(tickDiv);
-                });
-            }
-        };
-
-        Chart.register(timeLineLinesPlugin, syncStickyTicksPlugin);
+        Chart.register(timeLineLinesPlugin);
 
         function getDirectionInfo(deg) {
             if (deg === null || deg === undefined) return { text: '--', arrow: '' };
@@ -596,9 +550,6 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    layout: {
-                        padding: 0
-                    },
                     onClick: (e, elements) => {
                         if (elements.length > 0) {
                             selectIndex(elements[0].index);
@@ -629,20 +580,25 @@
                         yWave: {
                             type: 'linear',
                             position: 'left',
-                            display: false,
+                            display: true,
+                            afterFit: (axis) => { axis.width = 42; }, /* 左右の幅を固定 */
                             beginAtZero: true,
-                            max: targetMax
+                            max: targetMax,
+                            ticks: { 
+                                color: '#38bdf8',
+                                font: { size: 10, weight: '600' }
+                            },
+                            grid: { color: 'rgba(51, 65, 85, 0.2)' }
                         },
                         yTide: {
                             type: 'linear',
                             position: 'right',
                             display: true,
-                            afterFit: (axis) => { axis.width = 0; },
+                            afterFit: (axis) => { axis.width = 42; }, /* 左右の幅を固定 */
                             title: { display: false },
                             ticks: { 
-                                color: '#fb923c', 
-                                padding: 4,
-                                font: { size: 9.6, weight: '600' } /* 右側（潮位）目盛りのフォントサイズを左側と完全統一 */
+                                color: '#fb923c',
+                                font: { size: 10, weight: '600' } /* 左右でフォントサイズ・太さを完全一致 */
                             },
                             grid: { drawOnChartArea: false }
                         }
