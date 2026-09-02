@@ -642,15 +642,22 @@
                             beginAtZero: true,
                             max: targetMax
                         },
+
                         yTide: {
-                            type: 'linear',
-                            position: 'right',
-                            display: true,
-                            afterFit: (axis) => { axis.width = 0; }, /* Chart.jsの軸描画領域を0pxにして右側目盛りテキストを右パディング42px内に表示させる */
-                            title: { display: false },
-                            ticks: { color: '#fb923c', padding: 4 },
-                            grid: { drawOnChartArea: false }
-                        }
+    type: 'linear',
+    position: 'right',
+    display: true,
+    afterFit: (axis) => { axis.width = 0; },
+    title: { display: false },
+    ticks: { 
+        color: '#fb923c', 
+        padding: 4,
+        font: { size: 10 } /* ← この1行を追加 */
+    },
+    grid: { drawOnChartArea: false }
+}
+
+                                             
                     }
                 }
             });
