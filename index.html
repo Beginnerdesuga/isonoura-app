@@ -127,11 +127,11 @@
             padding-bottom: 10px;
         }
 
-        /* 右側「潮位(m)」固定ラベル（幅42px・左側と完全線対称） */
+        /* 右側「潮位(m)」スクロール連動ラベル（幅42px・グラフ右端に配置） */
         .sticky-right-label {
             position: absolute;
             right: 0;
-            top: 6px; /* 枠外上部へ配置 */
+            top: -18px;
             width: 42px;
             text-align: right;
             padding-right: 4px;
@@ -144,12 +144,11 @@
         }
 
         .sticky-wave-area {
-            height: 386px; /* 380px(グラフ) + 6px(余白) */
+            height: 386px;
             position: relative;
             border-bottom: 1px dashed var(--border-color);
         }
 
-        /* 波高(m)ラベルを外側上部に退避 */
         .sticky-label-wave {
             position: absolute;
             top: -18px;
@@ -201,8 +200,6 @@
         .canvas-container {
             height: 380px;
             position: relative;
-            padding-left: 42px; /* 左右均等42px余白 */
-            padding-right: 42px;
         }
 
         .timeline-wrapper {
@@ -331,11 +328,10 @@
             </div>
         </div>
 
-        <!-- 右側「潮位(m)」固定ラベル（上部横書き） -->
-        <div class="sticky-right-label">潮位(m)</div>
-
         <div class="chart-scroll-wrapper">
             <div class="chart-inner">
+                <!-- 右側「潮位(m)」スクロール連動ラベル -->
+                <div class="sticky-right-label">潮位(m)</div>
                 <div class="canvas-container">
                     <canvas id="marineChart"></canvas>
                 </div>
@@ -357,7 +353,7 @@
         let selectedIndex = 0;
         let nowIndex = 0;
 
-        // 現在地の赤点線 ＆ タップ選択された青点線を二重描写するプラグイン
+        // 現在地の赤点線 ＆ タップ選択された青点線を描画するプラグイン
         const timeLineLinesPlugin = {
             id: 'timeLineLines',
             afterDraw: (chart) => {
@@ -374,7 +370,7 @@
                     ctx.moveTo(xNow, topY);
                     ctx.lineTo(xNow, bottomY);
                     ctx.lineWidth = 2;
-                    ctx.strokeStyle = '#ef4444'; // 赤色
+                    ctx.strokeStyle = '#ef4444';
                     ctx.setLineDash([4, 4]);
                     ctx.stroke();
                     ctx.restore();
@@ -389,7 +385,7 @@
                     ctx.moveTo(xTarget, topY);
                     ctx.lineTo(xTarget, bottomY);
                     ctx.lineWidth = 2;
-                    ctx.strokeStyle = '#38bdf8'; // 水色
+                    ctx.strokeStyle = '#38bdf8';
                     ctx.setLineDash([4, 4]);
                     ctx.stroke();
                     ctx.restore();
@@ -634,19 +630,22 @@
                         yWave: {
                             type: 'linear',
                             position: 'left',
-                            display: false,
+                            display: true,
+                            afterFit: (axis) => { axis.width = 42; },
                             beginAtZero: true,
-                            max: targetMax
+                            max: targetMax,
+                            ticks: { display: false },
+                            grid: { drawOnChartArea: false }
                         },
-    yTide: {
-    type: 'linear',
-    position: 'right',
-    afterFit: (axis) => { axis.width = 42; }, /* ← この1行を追加 */
-    title: { display: false },
-    ticks: { color: '#fb923c' },
-    grid: { drawOnChartArea: false }
-}
-
+                        yTide: {
+                            type: 'linear',
+                            position: 'right',
+                            display: true,
+                            afterFit: (axis) => { axis.width = 42; },
+                            title: { display: false },
+                            ticks: { color: '#fb923c' },
+                            grid: { drawOnChartArea: false }
+                        }
                     }
                 }
             });
