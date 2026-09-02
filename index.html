@@ -15,6 +15,7 @@
             --accent-tide: #fb923c;
             --accent-wind: #4ade80;
             --border-color: #334155;
+            --sticky-width: 42px; /* 固定目盛列の幅 */
         }
 
         * {
@@ -111,45 +112,38 @@
             position: relative;
         }
 
-        /* 左側固定列（幅42px） */
-        .sticky-left-column {
+        /* 共通の固定列スタイル */
+        .sticky-column {
             position: absolute;
-            left: 0;
             top: 24px;
             bottom: 0;
-            width: 42px;
+            width: var(--sticky-width);
             background-color: var(--card-bg);
             z-index: 10;
-            border-right: 1px solid var(--border-color);
             display: flex;
             flex-direction: column;
             pointer-events: none;
             padding-bottom: 10px;
         }
 
-        /* 右側「潮位(m)」固定ラベル（幅42px・左側と完全線対称） */
-        .sticky-right-label {
-            position: absolute;
+        /* 左固定列（波高） */
+        .sticky-left-column {
+            left: 0;
+            border-right: 1px solid var(--border-color);
+        }
+
+        /* 右固定列（潮位） */
+        .sticky-right-column {
             right: 0;
-            top: 6px; /* 枠外上部へ配置 */
-            width: 42px;
-            text-align: right;
-            padding-right: 4px;
-            font-size: 0.65rem;
-            font-weight: bold;
-            color: var(--accent-tide);
-            z-index: 10;
-            pointer-events: none;
-            white-space: nowrap;
+            border-left: 1px solid var(--border-color);
         }
 
         .sticky-wave-area {
-            height: 386px; /* 380px(グラフ) + 6px(余白) */
+            height: 386px;
             position: relative;
             border-bottom: 1px dashed var(--border-color);
         }
 
-        /* 波高(m)ラベルを外側上部に退避 */
         .sticky-label-wave {
             position: absolute;
             top: -18px;
@@ -158,23 +152,40 @@
             font-weight: bold;
             color: var(--accent-wave);
             white-space: nowrap;
-            z-index: 10;
         }
 
-        .sticky-wave-ticks {
+        .sticky-label-tide {
+            position: absolute;
+            top: -18px;
+            right: 4px;
+            font-size: 0.65rem;
+            font-weight: bold;
+            color: var(--accent-tide);
+            white-space: nowrap;
+        }
+
+        .sticky-ticks {
             position: absolute;
             top: 0;
             bottom: 0;
             left: 0;
             right: 0;
             font-size: 0.6rem;
-            color: var(--accent-wave);
             font-weight: 600;
         }
 
-        .sticky-tick {
+        .sticky-ticks.wave { color: var(--accent-wave); }
+        .sticky-ticks.tide { color: var(--accent-tide); }
+
+        .sticky-tick-left {
             position: absolute;
             right: 6px;
+            transform: translateY(50%);
+        }
+
+        .sticky-tick-right {
+            position: absolute;
+            left: 6px;
             transform: translateY(50%);
         }
 
@@ -198,11 +209,12 @@
         .sticky-timeline-labels .label-wave-dir { color: var(--accent-wave); }
         .sticky-timeline-labels .label-wind-val { color: var(--accent-wind); }
 
+        /* グラフ描画エリアとタイムラインの左右パディングを厳密に同期 */
         .canvas-container {
             height: 380px;
             position: relative;
-            padding-left: 42px; /* 左右均等42px余白 */
-            padding-right: 42px;
+            padding-left: var(--sticky-width);
+            padding-right: var(--sticky-width);
         }
 
         .timeline-wrapper {
@@ -210,8 +222,8 @@
             border-top: 1px dashed var(--border-color);
             margin-top: 6px;
             padding-top: 6px;
-            padding-left: 42px;
-            padding-right: 42px;
+            padding-left: var(--sticky-width);
+            padding-right: var(--sticky-width);
         }
 
         .timeline-data {
@@ -267,6 +279,7 @@
             padding: 6px 14px;
             font-size: 0.8rem;
             font-weight: 600;
+            cursor: pointer;
         }
 
         .last-update { font-size: 0.75rem; color: var(--text-secondary); }
@@ -318,11 +331,11 @@
     <div class="chart-card">
         <div id="loading" class="loading-overlay">取得中...</div>
         
-        <!-- 左固定エリア（幅42px） -->
-        <div class="sticky-left-column">
+        <!-- 左固定列（波高） -->
+        <div class="sticky-column sticky-left-column">
             <div class="sticky-wave-area">
                 <div class="sticky-label-wave">波高(m)</div>
-                <div class="sticky-wave-ticks" id="stickyWaveTicks"></div>
+                <div class="sticky-ticks wave" id="stickyWaveTicks"></div>
             </div>
             <div class="sticky-timeline-labels">
                 <div class="label-wave-dir">波向</div>
@@ -331,8 +344,13 @@
             </div>
         </div>
 
-        <!-- 右側「潮位(m)」固定ラベル（上部横書き） -->
-        <div class="sticky-right-label">潮位(m)</div>
+        <!-- 右固定列（潮位） -->
+        <div class="sticky-column sticky-right-column">
+            <div class="sticky-wave-area">
+                <div class="sticky-label-tide">潮位(m)</div>
+                <div class="sticky-ticks tide" id="stickyTideTicks"></div>
+            </div>
+        </div>
 
         <div class="chart-scroll-wrapper">
             <div class="chart-inner">
@@ -357,16 +375,16 @@
         let selectedIndex = 0;
         let nowIndex = 0;
 
-        // 現在地の赤点線 ＆ タップ選択された青点線を二重描写するプラグイン
         const timeLineLinesPlugin = {
             id: 'timeLineLines',
             afterDraw: (chart) => {
                 const meta = chart.getDatasetMeta(0);
+                if (!meta || !meta.data.length) return;
                 const topY = chart.scales.yWave.top;
                 const bottomY = chart.scales.yWave.bottom;
                 const ctx = chart.ctx;
 
-                // 1. 現在地の赤点線を常時描画
+                // 現在地の赤点線
                 if (nowIndex >= 0 && meta.data[nowIndex]) {
                     const xNow = meta.data[nowIndex].x;
                     ctx.save();
@@ -374,13 +392,13 @@
                     ctx.moveTo(xNow, topY);
                     ctx.lineTo(xNow, bottomY);
                     ctx.lineWidth = 2;
-                    ctx.strokeStyle = '#ef4444'; // 赤色
+                    ctx.strokeStyle = '#ef4444';
                     ctx.setLineDash([4, 4]);
                     ctx.stroke();
                     ctx.restore();
                 }
 
-                // 2. タップで選択された位置（現在地と異なる場合）に青点線を描画
+                // タップ選択された位置の青点線
                 const targetIndex = chart.config.options.plugins.targetIndex;
                 if (targetIndex !== undefined && targetIndex !== nowIndex && meta.data[targetIndex]) {
                     const xTarget = meta.data[targetIndex].x;
@@ -389,7 +407,7 @@
                     ctx.moveTo(xTarget, topY);
                     ctx.lineTo(xTarget, bottomY);
                     ctx.lineWidth = 2;
-                    ctx.strokeStyle = '#38bdf8'; // 水色
+                    ctx.strokeStyle = '#38bdf8';
                     ctx.setLineDash([4, 4]);
                     ctx.stroke();
                     ctx.restore();
@@ -397,28 +415,43 @@
             }
         };
 
+        // 固定目盛をChart.jsのスケールと自動同期するプラグイン
         const syncStickyTicksPlugin = {
             id: 'syncStickyTicks',
             afterRender: (chart) => {
-                const scale = chart.scales.yWave;
-                if (!scale) return;
-
-                const container = document.getElementById('stickyWaveTicks');
-                container.innerHTML = '';
-
-                const ticks = scale.ticks;
                 const chartHeight = chart.height;
 
-                ticks.forEach(tick => {
-                    const yPixel = scale.getPixelForValue(tick.value);
-                    const bottomPos = chartHeight - yPixel;
+                // 左軸（波高）の同期
+                const scaleWave = chart.scales.yWave;
+                if (scaleWave) {
+                    const containerWave = document.getElementById('stickyWaveTicks');
+                    containerWave.innerHTML = '';
+                    scaleWave.ticks.forEach(tick => {
+                        const yPixel = scaleWave.getPixelForValue(tick.value);
+                        const bottomPos = chartHeight - yPixel;
+                        const tickDiv = document.createElement('div');
+                        tickDiv.className = 'sticky-tick-left';
+                        tickDiv.style.bottom = bottomPos + 'px';
+                        tickDiv.textContent = tick.value.toFixed(1);
+                        containerWave.appendChild(tickDiv);
+                    });
+                }
 
-                    const tickDiv = document.createElement('div');
-                    tickDiv.className = 'sticky-tick';
-                    tickDiv.style.bottom = bottomPos + 'px';
-                    tickDiv.textContent = tick.value.toFixed(1);
-                    container.appendChild(tickDiv);
-                });
+                // 右軸（潮位）の同期
+                const scaleTide = chart.scales.yTide;
+                if (scaleTide) {
+                    const containerTide = document.getElementById('stickyTideTicks');
+                    containerTide.innerHTML = '';
+                    scaleTide.ticks.forEach(tick => {
+                        const yPixel = scaleTide.getPixelForValue(tick.value);
+                        const bottomPos = chartHeight - yPixel;
+                        const tickDiv = document.createElement('div');
+                        tickDiv.className = 'sticky-tick-right';
+                        tickDiv.style.bottom = bottomPos + 'px';
+                        tickDiv.textContent = tick.value.toFixed(1);
+                        containerTide.appendChild(tickDiv);
+                    });
+                }
             }
         };
 
@@ -565,14 +598,11 @@
             if (myChart) myChart.destroy();
 
             const maxWaveVal = Math.max(...waveData.filter(v => v !== null), 0);
-            const targetMax = maxWaveVal > 2.0 ? Math.ceil(maxWaveVal * 1.1 * 10) / 10 : 2.0;
+            const targetMaxWave = maxWaveVal > 2.0 ? Math.ceil(maxWaveVal * 1.1 * 10) / 10 : 2.0;
 
-            const tickFontColors = rawTimes.map(t => (new Date(t).getHours() % 3 === 0) ? '#f8fafc' : '#64748b');
-            const tickFontWeights = rawTimes.map(t => (new Date(t).getHours() % 3 === 0) ? 'bold' : 'normal');
-            const tickFontSizes = rawTimes.map(t => {
-                const h = new Date(t).getHours();
-                return (h === 0 || h % 3 === 0) ? 11 : 9;
-            });
+            const validTide = tideData.filter(v => v !== null);
+            const minTide = validTide.length ? Math.floor(Math.min(...validTide) * 10) / 10 : -0.5;
+            const maxTide = validTide.length ? Math.ceil(Math.max(...validTide) * 10) / 10 : 1.5;
 
             myChart = new Chart(ctx, {
                 type: 'bar',
@@ -582,20 +612,22 @@
                         {
                             label: '波高 (m)',
                             data: waveData,
-                            backgroundColor: 'rgba(56, 189, 248, 0.65)',
+                            backgroundColor: 'rgba(56, 189, 248, 0.85)',
                             borderColor: '#38bdf8',
                             borderWidth: 1,
                             yAxisID: 'yWave',
                             order: 2
                         },
                         {
+                            type: 'line',
                             label: '潮位 (m)',
                             data: tideData,
-                            type: 'line',
                             borderColor: '#fb923c',
+                            backgroundColor: 'rgba(251, 146, 60, 0.2)',
                             borderWidth: 2.5,
-                            tension: 0.4,
                             pointRadius: 0,
+                            pointHoverRadius: 4,
+                            tension: 0.4,
                             yAxisID: 'yTide',
                             order: 1
                         }
@@ -604,46 +636,54 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    layout: {
+                        padding: { left: 0, right: 0, top: 10, bottom: 0 }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            callbacks: {
+                                title: (items) => {
+                                    if (!items.length) return '';
+                                    const idx = items[0].dataIndex;
+                                    const d = new Date(rawTimes[idx]);
+                                    return `${d.getMonth() + 1}/${d.getDate()} ${d.getHours()}:00`;
+                                }
+                            }
+                        },
+                        targetIndex: selectedIndex
+                    },
                     onClick: (e, elements) => {
                         if (elements.length > 0) {
                             selectIndex(elements[0].index);
                         }
                     },
-                    interaction: { mode: 'index', intersect: false },
-                    plugins: {
-                        legend: { display: false },
-                        targetIndex: selectedIndex
-                    },
                     scales: {
                         x: {
-                            ticks: { 
-                                autoSkip: false,
-                                maxRotation: 0, 
-                                font: function(context) {
-                                    return {
-                                        size: tickFontSizes[context.index] || 10,
-                                        weight: tickFontWeights[context.index] || 'normal'
-                                    };
-                                },
-                                color: function(context) {
-                                    return tickFontColors[context.index] || '#94a3b8';
-                                }
-                            },
-                            grid: { color: 'rgba(51, 65, 85, 0.3)' }
+                            grid: { color: 'rgba(51, 65, 85, 0.4)' },
+                            ticks: {
+                                color: (ctx) => (rawTimes[ctx.index] && new Date(rawTimes[ctx.index]).getHours() % 3 === 0) ? '#f8fafc' : '#64748b',
+                                font: (ctx) => ({
+                                    weight: (rawTimes[ctx.index] && new Date(rawTimes[ctx.index]).getHours() % 3 === 0) ? 'bold' : 'normal',
+                                    size: 11
+                                })
+                            }
                         },
                         yWave: {
                             type: 'linear',
                             position: 'left',
-                            display: false,
-                            beginAtZero: true,
-                            max: targetMax
+                            min: 0,
+                            max: targetMaxWave,
+                            display: false // JSで描画をオフにし固定列へ集約
                         },
                         yTide: {
                             type: 'linear',
                             position: 'right',
-                            title: { display: false }, /* Chart.js標準タイトルを非表示にしてHTML側で統一 */
-                            ticks: { color: '#fb923c' },
-                            grid: { drawOnChartArea: false }
+                            min: minTide,
+                            max: maxTide,
+                            display: false // JSで描画をオフにし固定列へ集約
                         }
                     }
                 }
@@ -654,24 +694,25 @@
             const container = document.getElementById('timelineData');
             container.innerHTML = '';
 
-            waveDirs.forEach((waveDeg, i) => {
-                const waveInfo = getDirectionInfo(waveDeg);
-                const windSpeed = windSpeeds[i];
-                const windInfo = getDirectionInfo(windDirs[i]);
-
+            waveDirs.forEach((wDeg, i) => {
                 const col = document.createElement('div');
                 col.className = 'timeline-col';
                 col.onclick = () => selectIndex(i);
+
+                const waveInfo = getDirectionInfo(wDeg);
+                const windInfo = getDirectionInfo(windDirs[i]);
+                const speed = windSpeeds[i] !== null ? windSpeeds[i] : '--';
+
                 col.innerHTML = `
-                    <div class="wave-dir-arrow">${waveInfo.arrow}</div>
-                    <div class="wind-val">${windSpeed !== null ? windSpeed : '--'}</div>
-                    <div class="wind-arrow">${windInfo.arrow}</div>
+                    <div class="wave-dir-arrow" title="${waveInfo.text}">${waveInfo.arrow}</div>
+                    <div class="wind-val">${speed}</div>
+                    <div class="wind-arrow" title="${windInfo.text}">${windInfo.arrow}</div>
                 `;
                 container.appendChild(col);
             });
         }
 
-        window.addEventListener('DOMContentLoaded', fetchData);
+        fetchData();
     </script>
 </body>
 </html>
