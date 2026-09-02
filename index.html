@@ -54,11 +54,6 @@
             border-radius: 8px;
             padding: 8px 4px;
             text-align: center;
-            transition: border-color 0.2s;
-        }
-
-        .metric-card.selected {
-            border-color: var(--accent-wave);
         }
 
         .metric-label { font-size: 0.65rem; color: var(--text-secondary); }
@@ -116,7 +111,7 @@
             position: relative;
         }
 
-        /* 左側固定列：42pxのスリム幅で画面領域を最大化 */
+        /* 左側固定列（幅42px） */
         .sticky-left-column {
             position: absolute;
             left: 0;
@@ -132,13 +127,29 @@
             padding-bottom: 10px;
         }
 
+        /* 右側「潮位(m)」固定ラベル（幅42px・左側と完全線対称） */
+        .sticky-right-label {
+            position: absolute;
+            right: 0;
+            top: 6px; /* 枠外上部へ配置 */
+            width: 42px;
+            text-align: right;
+            padding-right: 4px;
+            font-size: 0.65rem;
+            font-weight: bold;
+            color: var(--accent-tide);
+            z-index: 10;
+            pointer-events: none;
+            white-space: nowrap;
+        }
+
         .sticky-wave-area {
             height: 386px; /* 380px(グラフ) + 6px(余白) */
             position: relative;
             border-bottom: 1px dashed var(--border-color);
         }
 
-        /* 波高(m)ラベルを外側上部に完全退避 */
+        /* 波高(m)ラベルを外側上部に退避 */
         .sticky-label-wave {
             position: absolute;
             top: -18px;
@@ -190,7 +201,8 @@
         .canvas-container {
             height: 380px;
             position: relative;
-            padding-left: 42px; /* 42pxに合わせて縮小 */
+            padding-left: 42px; /* 左右均等42px余白 */
+            padding-right: 42px;
         }
 
         .timeline-wrapper {
@@ -198,13 +210,13 @@
             border-top: 1px dashed var(--border-color);
             margin-top: 6px;
             padding-top: 6px;
-            padding-left: 42px; /* 42pxに合わせて縮小 */
+            padding-left: 42px;
+            padding-right: 42px;
         }
 
         .timeline-data {
             display: flex;
             flex-grow: 1;
-            padding-right: 40px;
         }
 
         .timeline-col {
@@ -281,17 +293,17 @@
     </header>
 
     <div class="metrics-grid">
-        <div class="metric-card" id="cardWave">
+        <div class="metric-card">
             <div class="metric-label">波高</div>
             <div class="metric-value wave" id="currentWave">--</div>
             <div class="metric-sub" id="maxWave">本日最大 --</div>
         </div>
-        <div class="metric-card" id="cardTide">
+        <div class="metric-card">
             <div class="metric-label">潮位</div>
             <div class="metric-value tide" id="currentTide">--</div>
             <div class="metric-sub" id="tideForecast">--</div>
         </div>
-        <div class="metric-card" id="cardWind">
+        <div class="metric-card">
             <div class="metric-label">風速・風向</div>
             <div class="metric-value wind" id="currentWind">--</div>
             <div id="windTypeBadge" class="wind-badge">--</div>
@@ -319,6 +331,9 @@
             </div>
         </div>
 
+        <!-- 右側「潮位(m)」固定ラベル（上部横書き） -->
+        <div class="sticky-right-label">潮位(m)</div>
+
         <div class="chart-scroll-wrapper">
             <div class="chart-inner">
                 <div class="canvas-container">
@@ -342,29 +357,43 @@
         let selectedIndex = 0;
         let nowIndex = 0;
 
-        const currentTimeLinePlugin = {
-            id: 'currentTimeLine',
+        // 現在地の赤点線 ＆ タップ選択された青点線を二重描写するプラグイン
+        const timeLineLinesPlugin = {
+            id: 'timeLineLines',
             afterDraw: (chart) => {
-                const targetIndex = chart.config.options.plugins.targetIndex;
-                if (targetIndex === undefined || targetIndex < 0) return;
-
                 const meta = chart.getDatasetMeta(0);
-                if (!meta.data[targetIndex]) return;
-
-                const x = meta.data[targetIndex].x;
                 const topY = chart.scales.yWave.top;
                 const bottomY = chart.scales.yWave.bottom;
-
                 const ctx = chart.ctx;
-                ctx.save();
-                ctx.beginPath();
-                ctx.moveTo(x, topY);
-                ctx.lineTo(x, bottomY);
-                ctx.lineWidth = 2;
-                ctx.strokeStyle = (targetIndex === nowIndex) ? '#ef4444' : '#38bdf8';
-                ctx.setLineDash([4, 4]);
-                ctx.stroke();
-                ctx.restore();
+
+                // 1. 現在地の赤点線を常時描画
+                if (nowIndex >= 0 && meta.data[nowIndex]) {
+                    const xNow = meta.data[nowIndex].x;
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.moveTo(xNow, topY);
+                    ctx.lineTo(xNow, bottomY);
+                    ctx.lineWidth = 2;
+                    ctx.strokeStyle = '#ef4444'; // 赤色
+                    ctx.setLineDash([4, 4]);
+                    ctx.stroke();
+                    ctx.restore();
+                }
+
+                // 2. タップで選択された位置（現在地と異なる場合）に青点線を描画
+                const targetIndex = chart.config.options.plugins.targetIndex;
+                if (targetIndex !== undefined && targetIndex !== nowIndex && meta.data[targetIndex]) {
+                    const xTarget = meta.data[targetIndex].x;
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.moveTo(xTarget, topY);
+                    ctx.lineTo(xTarget, bottomY);
+                    ctx.lineWidth = 2;
+                    ctx.strokeStyle = '#38bdf8'; // 水色
+                    ctx.setLineDash([4, 4]);
+                    ctx.stroke();
+                    ctx.restore();
+                }
             }
         };
 
@@ -393,7 +422,7 @@
             }
         };
 
-        Chart.register(currentTimeLinePlugin, syncStickyTicksPlugin);
+        Chart.register(timeLineLinesPlugin, syncStickyTicksPlugin);
 
         function getDirectionInfo(deg) {
             if (deg === null || deg === undefined) return { text: '--', arrow: '' };
@@ -612,7 +641,7 @@
                         yTide: {
                             type: 'linear',
                             position: 'right',
-                            title: { display: true, text: '潮位(m)', color: '#fb923c' },
+                            title: { display: false }, /* Chart.js標準タイトルを非表示にしてHTML側で統一 */
                             ticks: { color: '#fb923c' },
                             grid: { drawOnChartArea: false }
                         }
