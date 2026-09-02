@@ -638,13 +638,15 @@
                             beginAtZero: true,
                             max: targetMax
                         },
-                        yTide: {
-                            type: 'linear',
-                            position: 'right',
-                            title: { display: false }, /* Chart.js標準タイトルを非表示にしてHTML側で統一 */
-                            ticks: { color: '#fb923c' },
-                            grid: { drawOnChartArea: false }
-                        }
+    yTide: {
+    type: 'linear',
+    position: 'right',
+    afterFit: (axis) => { axis.width = 42; }, /* ← この1行を追加 */
+    title: { display: false },
+    ticks: { color: '#fb923c' },
+    grid: { drawOnChartArea: false }
+}
+
                     }
                 }
             });
