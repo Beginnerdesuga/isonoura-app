@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>磯ノ浦 波・潮・風モニター</title>
+    <title>磯ノ浦 波・潮・風・天気モニター</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
@@ -14,6 +14,7 @@
             --accent-wave: #38bdf8;
             --accent-tide: #fb923c;
             --accent-wind: #4ade80;
+            --accent-weather: #facc15;
             --border-color: #334155;
         }
 
@@ -43,8 +44,8 @@
 
         .metrics-grid {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 6px;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 4px;
             margin-bottom: 12px;
         }
 
@@ -52,21 +53,22 @@
             background-color: var(--card-bg);
             border: 1px solid var(--border-color);
             border-radius: 8px;
-            padding: 8px 4px;
+            padding: 8px 2px;
             text-align: center;
         }
 
-        .metric-label { font-size: 0.65rem; color: var(--text-secondary); }
-        .metric-value { font-size: 1.05rem; font-weight: 700; margin-top: 2px; }
-        .metric-sub { font-size: 0.65rem; color: var(--text-secondary); margin-top: 1px; }
+        .metric-label { font-size: 0.6rem; color: var(--text-secondary); }
+        .metric-value { font-size: 0.95rem; font-weight: 700; margin-top: 2px; }
+        .metric-sub { font-size: 0.6rem; color: var(--text-secondary); margin-top: 1px; }
         .metric-value.wave { color: var(--accent-wave); }
         .metric-value.tide { color: var(--accent-tide); }
         .metric-value.wind { color: var(--accent-wind); }
+        .metric-value.weather { color: var(--accent-weather); }
 
         .wind-badge {
             display: inline-block;
-            font-size: 0.6rem;
-            padding: 1px 5px;
+            font-size: 0.55rem;
+            padding: 1px 3px;
             border-radius: 4px;
             margin-top: 2px;
             font-weight: 600;
@@ -101,7 +103,6 @@
             padding: 10px 0;
         }
 
-        /* 上部に配置する凡例（スリム化・横書き） */
         .chart-legend-header {
             display: flex;
             justify-content: space-between;
@@ -146,7 +147,6 @@
             position: relative;
         }
 
-        /* 左軸固定用のコンテナ設定 */
         .sticky-axis-container {
             position: sticky;
             left: 0;
@@ -227,6 +227,7 @@
             padding: 6px 14px;
             font-size: 0.8rem;
             font-weight: 600;
+            cursor: pointer;
         }
 
         .last-update { font-size: 0.75rem; color: var(--text-secondary); }
@@ -268,6 +269,11 @@
             <div class="metric-value wind" id="currentWind">--</div>
             <div id="windTypeBadge" class="wind-badge">--</div>
         </div>
+        <div class="metric-card">
+            <div class="metric-label">天気</div>
+            <div class="metric-value weather" id="currentWeather">--</div>
+            <div class="metric-sub" id="weatherText">--</div>
+        </div>
     </div>
 
     <div class="scroll-hint">
@@ -278,7 +284,6 @@
     <div class="chart-card">
         <div id="loading" class="loading-overlay">取得中...</div>
 
-        <!-- スリム化した上部凡例 -->
         <div class="chart-legend-header">
             <div class="legend-item legend-wave">
                 <span class="legend-color-box"></span>
@@ -293,11 +298,9 @@
         <div class="chart-scroll-wrapper">
             <div class="chart-inner">
                 <div class="canvas-container">
-                    <!-- 左側の軸固定用キャンバス -->
                     <div class="sticky-axis-container">
                         <canvas id="axisChart"></canvas>
                     </div>
-                    <!-- メインデータ用キャンバス -->
                     <div class="main-chart-container">
                         <canvas id="marineChart"></canvas>
                     </div>
@@ -321,7 +324,6 @@
         let selectedIndex = 0;
         let nowIndex = 0;
 
-        // 縦線描画プラグイン（メインチャート用）
         const timeLineLinesPlugin = {
             id: 'timeLineLines',
             afterDraw: (chart) => {
@@ -361,6 +363,19 @@
 
         Chart.register(timeLineLinesPlugin);
 
+        function getWeatherInfo(code) {
+            if (code === null || code === undefined) return { icon: '--', text: '--' };
+            if (code === 0) return { icon: '☀️', text: '快晴' };
+            if (code === 1 || code === 2) return { icon: '🌤️', text: '晴れ' };
+            if (code === 3) return { icon: '☁️', text: 'くもり' };
+            if (code >= 45 && code <= 48) return { icon: '🌫️', text: '霧' };
+            if (code >= 51 && code <= 55) return { icon: '🌧️', text: '霧雨' };
+            if (code >= 61 && code <= 65) return { icon: '☔', text: '雨' };
+            if (code >= 80 && code <= 82) return { icon: '🌧️', text: 'にわか雨' };
+            if (code >= 95) return { icon: '⚡', text: '雷雨' };
+            return { icon: '☁️', text: '不明' };
+        }
+
         function getDirectionInfo(deg) {
             if (deg === null || deg === undefined) return { text: '--', arrow: '' };
             const directions = ['北', '北北東', '北東', '東北東', '東', '東南東', '南東', '南南東', '南', '南南西', '南西', '西南西', '西', '西北西', '北西', '北北西'];
@@ -385,7 +400,7 @@
             loadingEl.style.display = 'flex';
 
             const urlMarine = 'https://marine-api.open-meteo.com/v1/marine?latitude=34.25&longitude=135.08&hourly=wave_height,wave_direction,sea_level_height_msl&timezone=Asia%2FTokyo&forecast_days=3';
-            const urlWeather = 'https://api.open-meteo.com/v1/forecast?latitude=34.25&longitude=135.08&hourly=wind_speed_10m,wind_direction_10m&timezone=Asia%2FTokyo&forecast_days=3';
+            const urlWeather = 'https://api.open-meteo.com/v1/forecast?latitude=34.25&longitude=135.08&hourly=wind_speed_10m,wind_direction_10m,weather_code&timezone=Asia%2FTokyo&forecast_days=3';
 
             try {
                 const [resMarine, resWeather] = await Promise.all([fetch(urlMarine), fetch(urlWeather)]);
@@ -395,12 +410,13 @@
                 const dataWeather = await resWeather.json();
 
                 globalData = {
-                    times: dataMarine.hourly.time,
-                    waveHeights: dataMarine.hourly.wave_height,
-                    waveDirections: dataMarine.hourly.wave_direction,
-                    seaLevels: dataMarine.hourly.sea_level_height_msl,
-                    windSpeeds: dataWeather.hourly.wind_speed_10m.map(v => v !== null ? (v / 3.6).toFixed(1) : null),
-                    windDirections: dataWeather.hourly.wind_direction_10m
+                    times: dataMarine.hourly.time || [],
+                    waveHeights: dataMarine.hourly.wave_height || [],
+                    waveDirections: dataMarine.hourly.wave_direction || [],
+                    seaLevels: dataMarine.hourly.sea_level_height_msl || [],
+                    windSpeeds: dataWeather.hourly.wind_speed_10m ? dataWeather.hourly.wind_speed_10m.map(v => v !== null ? (v / 3.6).toFixed(1) : null) : [],
+                    windDirections: dataWeather.hourly.wind_direction_10m || [],
+                    weatherCodes: dataWeather.hourly.weather_code || []
                 };
 
                 const now = new Date();
@@ -425,6 +441,8 @@
         }
 
         function updateMetricsCards(index) {
+            if (!globalData || !globalData.times || !globalData.times[index]) return;
+
             const t = new Date(globalData.times[index]);
             const month = t.getMonth() + 1;
             const date = t.getDate();
@@ -439,30 +457,36 @@
                 labelEl.style.background = '#0284c7';
             }
 
-            const curWave = globalData.waveHeights[index] !== null ? globalData.waveHeights[index].toFixed(2) : '--';
-            const curTide = globalData.seaLevels[index] !== null ? globalData.seaLevels[index].toFixed(2) : '--';
-            const curWindSpeed = globalData.windSpeeds[index] !== null ? globalData.windSpeeds[index] : '--';
+            const curWave = (globalData.waveHeights[index] !== null && globalData.waveHeights[index] !== undefined) ? Number(globalData.waveHeights[index]).toFixed(2) : '--';
+            const curTide = (globalData.seaLevels[index] !== null && globalData.seaLevels[index] !== undefined) ? Number(globalData.seaLevels[index]).toFixed(2) : '--';
+            const curWindSpeed = (globalData.windSpeeds[index] !== null && globalData.windSpeeds[index] !== undefined) ? globalData.windSpeeds[index] : '--';
             const curWindDirDeg = globalData.windDirections[index];
             const windType = getWindType(curWindDirDeg);
 
-            const todayWaveHeights = globalData.waveHeights.slice(0, 24).filter(v => v !== null);
+            const weatherCode = globalData.weatherCodes[index];
+            const weatherInfo = getWeatherInfo(weatherCode);
+
+            const todayWaveHeights = globalData.waveHeights.slice(0, 24).filter(v => v !== null && v !== undefined);
             const maxWaveVal = todayWaveHeights.length > 0 ? Math.max(...todayWaveHeights).toFixed(2) : '--';
 
-            let tideNotice = '高度 ' + curTide + 'm';
-            if (index + 1 < globalData.seaLevels.length) {
+            let tideNotice = curTide !== '--' ? '高度 ' + curTide + 'm' : '--';
+            if (index + 1 < globalData.seaLevels.length && globalData.seaLevels[index + 1] !== null && globalData.seaLevels[index] !== null) {
                 const isRising = globalData.seaLevels[index + 1] > globalData.seaLevels[index];
                 tideNotice = isRising ? '上げ潮傾向' : '下げ潮傾向';
             }
 
-            document.getElementById('currentWave').textContent = curWave + 'm';
+            document.getElementById('currentWave').textContent = curWave !== '--' ? curWave + 'm' : '--';
             document.getElementById('maxWave').textContent = '本日最大 ' + maxWaveVal + 'm';
-            document.getElementById('currentTide').textContent = curTide + 'm';
+            document.getElementById('currentTide').textContent = curTide !== '--' ? curTide + 'm' : '--';
             document.getElementById('tideForecast').textContent = tideNotice;
-            document.getElementById('currentWind').textContent = curWindSpeed + 'm/s';
+            document.getElementById('currentWind').textContent = curWindSpeed !== '--' ? curWindSpeed + 'm/s' : '--';
             
             const badgeEl = document.getElementById('windTypeBadge');
             badgeEl.textContent = windType.text;
             badgeEl.className = 'wind-badge ' + windType.class;
+
+            document.getElementById('currentWeather').textContent = weatherInfo.icon;
+            document.getElementById('weatherText').textContent = weatherInfo.text;
         }
 
         function resetToNow() {
@@ -484,6 +508,8 @@
         }
 
         function renderAll() {
+            if (!globalData || !globalData.times) return;
+
             const labels = globalData.times.map(t => {
                 const d = new Date(t);
                 const month = d.getMonth() + 1;
@@ -504,17 +530,10 @@
             if (myChart) myChart.destroy();
             if (axisChart) axisChart.destroy();
 
-            const maxWaveVal = Math.max(...waveData.filter(v => v !== null), 0);
+            const validWaveHeights = waveData.filter(v => v !== null && v !== undefined);
+            const maxWaveVal = validWaveHeights.length > 0 ? Math.max(...validWaveHeights) : 0;
             const targetMax = maxWaveVal > 2.0 ? Math.ceil(maxWaveVal * 1.1 * 10) / 10 : 2.0;
 
-            const tickFontColors = rawTimes.map(t => (new Date(t).getHours() % 3 === 0) ? '#f8fafc' : '#64748b');
-            const tickFontWeights = rawTimes.map(t => (new Date(t).getHours() % 3 === 0) ? 'bold' : 'normal');
-            const tickFontSizes = rawTimes.map(t => {
-                const h = new Date(t).getHours();
-                return (h === 0 || h % 3 === 0) ? 11 : 9;
-            });
-
-            // 1. 左側固定用の軸描写用ダミーチャート
             axisChart = new Chart(axisCtx, {
                 type: 'bar',
                 data: {
@@ -542,7 +561,6 @@
                 }
             });
 
-            // 2. メインのグラフ（左軸の目盛り表示は非表示にして余白調整）
             myChart = new Chart(ctx, {
                 type: 'bar',
                 data: {
@@ -562,9 +580,10 @@
                             data: tideData,
                             type: 'line',
                             borderColor: '#fb923c',
-                            borderWidth: 2.5,
-                            tension: 0.4,
+                            backgroundColor: '#fb923c',
+                            borderWidth: 2,
                             pointRadius: 0,
+                            tension: 0.3,
                             yAxisID: 'yTide',
                             order: 1
                         }
@@ -573,79 +592,82 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    onClick: (e, elements) => {
-                        if (elements.length > 0) {
-                            selectIndex(elements[0].index);
+                    onClick: (e, activeElements) => {
+                        if (activeElements.length > 0) {
+                            selectIndex(activeElements[0].index);
+                        } else {
+                            const rect = e.chart.canvas.getBoundingClientRect();
+                            const x = e.x - rect.left;
+                            const xAxis = e.chart.scales.x;
+                            const index = xAxis.getValueForPixel(x);
+                            if (index >= 0 && index < rawTimes.length) {
+                                selectIndex(index);
+                            }
                         }
                     },
-                    interaction: { mode: 'index', intersect: false },
                     plugins: {
                         legend: { display: false },
                         targetIndex: selectedIndex
                     },
                     scales: {
                         x: {
-                            ticks: { 
-                                autoSkip: false,
-                                maxRotation: 0, 
-                                font: function(context) {
-                                    return {
-                                        size: tickFontSizes[context.index] || 10,
-                                        weight: tickFontWeights[context.index] || 'normal'
-                                    };
-                                },
-                                color: function(context) {
-                                    return tickFontColors[context.index] || '#94a3b8';
-                                }
-                            },
-                            grid: { color: 'rgba(51, 65, 85, 0.3)' }
+                            grid: { color: 'rgba(51, 65, 85, 0.5)' },
+                            ticks: {
+                                color: (ctx) => (new Date(rawTimes[ctx.index]).getHours() % 3 === 0) ? '#f8fafc' : '#64748b',
+                                font: (ctx) => ({
+                                    size: (new Date(rawTimes[ctx.index]).getHours() % 3 === 0) ? 11 : 9,
+                                    weight: (new Date(rawTimes[ctx.index]).getHours() % 3 === 0) ? 'bold' : 'normal'
+                                })
+                            }
                         },
                         yWave: {
                             type: 'linear',
                             position: 'left',
-                            display: true,
                             beginAtZero: true,
                             max: targetMax,
-                            ticks: { display: false }, // 左軸の目盛りテキストは固定軸側に任せるため非表示
-                            grid: { color: 'rgba(51, 65, 85, 0.2)' }
+                            display: false
                         },
                         yTide: {
                             type: 'linear',
                             position: 'right',
-                            display: true,
-                            ticks: { 
+                            grid: { display: false },
+                            ticks: {
                                 color: '#fb923c',
                                 font: { size: 10, weight: '600' }
-                            },
-                            grid: { drawOnChartArea: false }
+                            }
                         }
                     }
                 }
             });
         }
 
-        function renderTimeline(waveDirs, windSpeeds, windDirs) {
+        function renderTimeline(waveDirections, windSpeeds, windDirections) {
             const container = document.getElementById('timelineData');
             container.innerHTML = '';
 
-            waveDirs.forEach((waveDeg, i) => {
-                const waveInfo = getDirectionInfo(waveDeg);
-                const windSpeed = windSpeeds[i];
-                const windInfo = getDirectionInfo(windDirs[i]);
+            if (!waveDirections) return;
+
+            waveDirections.forEach((wDeg, i) => {
+                const wSpeed = windSpeeds ? windSpeeds[i] : null;
+                const windDeg = windDirections ? windDirections[i] : null;
+                
+                const waveInfo = getDirectionInfo(wDeg);
+                const windInfo = getDirectionInfo(windDeg);
 
                 const col = document.createElement('div');
                 col.className = 'timeline-col';
                 col.onclick = () => selectIndex(i);
+
                 col.innerHTML = `
-                    <div class="wave-dir-arrow">${waveInfo.arrow}</div>
-                    <div class="wind-val">${windSpeed !== null ? windSpeed : '--'}</div>
-                    <div class="wind-arrow">${windInfo.arrow}</div>
+                    <div class="wave-dir-arrow" title="波向: ${waveInfo.text}">${waveInfo.arrow}</div>
+                    <div class="wind-val">${wSpeed !== null && wSpeed !== undefined ? wSpeed : '--'}</div>
+                    <div class="wind-arrow" title="風向: ${windInfo.text}">${windInfo.arrow}</div>
                 `;
                 container.appendChild(col);
             });
         }
 
-        window.addEventListener('DOMContentLoaded', fetchData);
+        window.onload = fetchData;
     </script>
 </body>
 </html>
