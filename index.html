@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>磯の浦 波・潮・風・天気モニター</title>
+    <title>磯の浦 波・潮・風モニター</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
@@ -64,7 +64,7 @@
         .metric-value.wave { color: var(--accent-wave); }
         .metric-value.tide { color: var(--accent-tide); }
         .metric-value.wind { color: var(--accent-wind); }
-        .metric-value.weather { color: var(--accent-weather); }
+        .metric-value.weather { color: var(--accent-weather); font-size: 1.1rem; }
 
         .wind-badge {
             display: inline-block;
@@ -108,232 +108,166 @@
             -webkit-overflow-scrolling: touch;
         }
 
-        .chart-container-inner {
+        .chart-container {
             position: relative;
-            height: 280px;
-        }
-
-        .timeline-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 0.75rem;
-            text-align: center;
-            margin-top: 4px;
-        }
-
-        .timeline-table td {
-            padding: 4px 0;
-            color: var(--text-secondary);
-        }
-
-        .wind-arrow {
-            display: inline-block;
-            font-weight: bold;
-            font-size: 0.9rem;
+            height: 320px;
+            min-width: 800px;
         }
     </style>
 </head>
 <body>
 
     <header>
-        <h1>磯の浦 波・潮・風・天気モニター</h1>
-        <div class="subtitle">和歌山県 和歌山市 磯の浦海岸</div>
-        <div class="location-note">※風向き判定：オフショア(北〜北東) / オンショア(南〜南西)</div>
+        <h1>磯の浦 波・潮・風モニター</h1>
+        <div class="subtitle">和歌山市磯の浦 沿岸データ</div>
     </header>
 
-    <!-- 上部カードエリア（4列表示） -->
     <div class="metrics-grid">
         <div class="metric-card">
-            <div class="metric-label">波高 / 周期</div>
-            <div class="metric-value wave" id="current-wave">0.8m</div>
-            <div class="metric-sub" id="current-period">6.2秒</div>
+            <div class="metric-label">波高</div>
+            <div class="metric-value wave" id="val-wave">--</div>
+            <div class="metric-sub" id="val-wave-period">--</div>
         </div>
         <div class="metric-card">
-            <div class="metric-label">潮位 (和歌山)</div>
-            <div class="metric-value tide" id="current-tide">142cm</div>
-            <div class="metric-sub" id="current-tide-state">中潮 (上げ潮)</div>
+            <div class="metric-label">潮位</div>
+            <div class="metric-value tide" id="val-tide">--</div>
+            <div class="metric-sub" id="val-tide-state">--</div>
         </div>
         <div class="metric-card">
-            <div class="metric-label">風向・風速</div>
-            <div class="metric-value wind" id="current-wind">北北東 2.5m</div>
-            <div id="current-wind-badge-container">
-                <span class="wind-badge badge-offshore" id="current-wind-badge">オフショア</span>
-            </div>
+            <div class="metric-label">風速</div>
+            <div class="metric-value wind" id="val-wind">--</div>
+            <div class="metric-sub" id="val-wind-dir">--</div>
         </div>
         <div class="metric-card">
-            <div class="metric-label">天気・気温</div>
-            <div class="metric-value weather" id="current-weather">☀️ 晴れ</div>
-            <div class="metric-sub" id="current-temp">25℃</div>
+            <div class="metric-label">天気</div>
+            <div class="metric-value weather" id="val-weather">--</div>
+            <div class="metric-sub" id="val-weather-text">--</div>
         </div>
     </div>
 
     <div class="scroll-hint">
-        <span>タップして選択: <span class="selected-time-display" id="selected-time">12:00</span></span>
-        <span>← 左右にスクロール →</span>
+        <span>タップした時間帯のデータを表示</span>
+        <span class="selected-time-display" id="selected-time">--:--</span>
     </div>
 
     <div class="chart-card">
-        <div class="chart-scroll-wrapper" id="scroll-wrapper">
-            <div class="chart-container-inner" id="chart-inner">
-                <canvas id="comboChart"></canvas>
+        <div class="chart-scroll-wrapper">
+            <div class="chart-container">
+                <canvas id="forecastChart"></canvas>
             </div>
-            <!-- 下部テーブル（風向・風速のみの元構成） -->
-            <table class="timeline-table" id="timeline-table">
-                <tr id="row-wind-dir"></tr>
-                <tr id="row-wind-speed"></tr>
-            </table>
         </div>
     </div>
 
     <script>
-        // 天気コードと表示用テキストの対応表
-        const weatherMap = {
-            'sunny': { icon: '☀️', label: '晴れ' },
-            'cloudy': { icon: '☁️', label: '曇り' },
-            'rainy': { icon: '☔', label: '雨' },
-            'partly_cloudy': { icon: '⛅', label: '晴れ/曇り' }
-        };
+        // 天気コードから表示マーク(静止画絵文字)とテキストを取得するマップ
+        function getWeatherInfo(code) {
+            if (code === 0) return { icon: '☀️', text: '快晴' };
+            if (code === 1 || code === 2) return { icon: '🌤️', text: '晴れ' };
+            if (code === 3) return { icon: '☁️', text: 'くもり' };
+            if (code >= 45 && code <= 48) return { icon: '🌫️', text: '霧' };
+            if (code >= 51 && code <= 55) return { icon: '🌧️', text: '霧雨' };
+            if (code >= 61 && code <= 65) return { icon: '☔', text: '雨' };
+            if (code >= 80 && code <= 82) return { icon: '🌧️', text: 'にわか雨' };
+            if (code >= 95) return { icon: '⚡', text: '雷雨' };
+            return { icon: '☁️', text: '不明' };
+        }
 
-        // サンプルデータ（各時刻の天気・気温をデータ内に保持）
-        const hourlyData = [
-            { time: '03:00', wave: 0.6, period: 5.5, tide: 80, windSpeed: 3.1, windDirStr: '北北東', windDeg: 22.5, type: 'offshore', weather: 'sunny', temp: 19 },
-            { time: '06:00', wave: 0.7, period: 5.8, tide: 120, windSpeed: 2.8, windDirStr: '北', windDeg: 0, type: 'offshore', weather: 'sunny', temp: 21 },
-            { time: '09:00', wave: 0.8, period: 6.0, tide: 165, windSpeed: 2.2, windDirStr: '北東', windDeg: 45, type: 'offshore', weather: 'partly_cloudy', temp: 23 },
-            { time: '12:00', wave: 0.8, period: 6.2, tide: 142, windSpeed: 2.5, windDirStr: '北北東', windDeg: 22.5, type: 'offshore', weather: 'sunny', temp: 25 },
-            { time: '15:00', wave: 0.9, period: 6.5, tide: 95, windSpeed: 4.1, windDirStr: '南西', windDeg: 225, type: 'onshore', weather: 'cloudy', temp: 24 },
-            { time: '18:00', wave: 0.7, period: 5.9, tide: 110, windSpeed: 3.5, windDirStr: '西', windDeg: 270, type: 'cross', weather: 'rainy', temp: 22 },
-            { time: '21:00', wave: 0.5, period: 5.2, tide: 135, windSpeed: 2.0, windDirStr: '西北西', windDeg: 292.5, type: 'offshore', weather: 'cloudy', temp: 20 }
-        ];
-
-        // カード要素の取得
-        const currentWaveEl = document.getElementById('current-wave');
-        const currentPeriodEl = document.getElementById('current-period');
-        const currentTideEl = document.getElementById('current-tide');
-        const currentWindEl = document.getElementById('current-wind');
-        const currentWindBadgeEl = document.getElementById('current-wind-badge');
-        const currentWeatherEl = document.getElementById('current-weather');
-        const currentTempEl = document.getElementById('current-temp');
-        const selectedTimeEl = document.getElementById('selected-time');
-
-        // 下部テーブル行の取得
-        const rowWindDir = document.getElementById('row-wind-dir');
-        const rowWindSpeed = document.getElementById('row-wind-speed');
-
-        // テーブル生成（風向矢印と風速のみ）
-        hourlyData.forEach(d => {
-            // 風向矢印
-            const tdDir = document.createElement('td');
-            tdDir.innerHTML = `<span class="wind-arrow" style="transform: rotate(${d.windDeg}deg); display:inline-block;">↓</span>`;
-            rowWindDir.appendChild(tdDir);
-
-            // 風速
-            const tdSpeed = document.createElement('td');
-            tdSpeed.innerText = `${d.windSpeed}m`;
-            rowWindSpeed.appendChild(tdSpeed);
-        });
-
-        // タップ時に上部カードの表示情報を更新する関数
-        function updateMetrics(index) {
-            const data = hourlyData[index];
-            const wInfo = weatherMap[data.weather] || { icon: '❓', label: '-' };
-
-            selectedTimeEl.innerText = data.time;
-            currentWaveEl.innerText = `${data.wave}m`;
-            currentPeriodEl.innerText = `${data.period}秒`;
-            currentTideEl.innerText = `${data.tide}cm`;
-            currentWindEl.innerText = `${data.windDirStr} ${data.windSpeed}m`;
-            currentWeatherEl.innerText = `${wInfo.icon} ${wInfo.label}`;
-            currentTempEl.innerText = `${data.temp}℃`;
-
-            // 風向バッジ更新
-            if (data.type === 'offshore') {
-                currentWindBadgeEl.className = 'wind-badge badge-offshore';
-                currentWindBadgeEl.innerText = 'オフショア';
-            } else if (data.type === 'onshore') {
-                currentWindBadgeEl.className = 'wind-badge badge-onshore';
-                currentWindBadgeEl.innerText = 'オンショア';
-            } else {
-                currentWindBadgeEl.className = 'wind-badge badge-cross';
-                currentWindBadgeEl.innerText = 'サイド/クロス';
+        // Open-Meteo API (磯の浦: 緯度 34.25, 経度 135.08) から天気データとあわせて取得する例
+        async function fetchForecastData() {
+            try {
+                const response = await fetch('https://api.open-meteo.com/v1/forecast?latitude=34.25&longitude=135.08&hourly=wave_height,wave_period,wind_speed_10m,wind_direction_10m,weather_code&timezone=Asia%2FTokyo');
+                const data = await response.json();
+                return data.hourly;
+            } catch (e) {
+                console.error("データ取得エラー", e);
+                return null;
             }
         }
 
-        // Chart.js 初期化
-        const ctx = document.getElementById('comboChart').getContext('2d');
-        const labels = hourlyData.map(d => d.time);
-        const waveData = hourlyData.map(d => d.wave);
-        const tideData = hourlyData.map(d => d.tide);
+        let chartInstance = null;
+        let hourlyData = null;
 
-        const chart = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: labels,
-                datasets: [
-                    {
+        function updateCards(index) {
+            if (!hourlyData) return;
+
+            // 時間
+            const timeStr = hourlyData.time[index] ? hourlyData.time[index].substring(11, 16) : '--:--';
+            document.getElementById('selected-time').innerText = timeStr;
+
+            // 波
+            const wave = hourlyData.wave_height ? hourlyData.wave_height[index] : '--';
+            const period = hourlyData.wave_period ? hourlyData.wave_period[index] : '--';
+            document.getElementById('val-wave').innerText = wave !== '--' ? wave + 'm' : '--';
+            document.getElementById('val-wave-period').innerText = period !== '--' ? period + 's' : '--';
+
+            // 潮 (仮値/計算値)
+            document.getElementById('val-tide').innerText = '120cm';
+            document.getElementById('val-tide-state').innerText = '中潮';
+
+            // 風
+            const wind = hourlyData.wind_speed_10m ? hourlyData.wind_speed_10m[index] : '--';
+            const windDir = hourlyData.wind_direction_10m ? hourlyData.wind_direction_10m[index] : '--';
+            document.getElementById('val-wind').innerText = wind !== '--' ? wind + 'm/s' : '--';
+            document.getElementById('val-wind-dir').innerText = windDir !== '--' ? windDir + '°' : '--';
+
+            // 天気 (グラフタップ連動)
+            const weatherCode = hourlyData.weather_code ? hourlyData.weather_code[index] : -1;
+            const weatherInfo = getWeatherInfo(weatherCode);
+            document.getElementById('val-weather').innerText = weatherInfo.icon;
+            document.getElementById('val-weather-text').innerText = weatherInfo.text;
+        }
+
+        async function init() {
+            const data = await fetchForecastData();
+            if (!data) return;
+
+            hourlyData = data;
+            const labels = data.time.map(t => t.substring(11, 16));
+
+            const ctx = document.getElementById('forecastChart').getContext('2d');
+            chartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
                         label: '波高 (m)',
-                        data: waveData,
-                        backgroundColor: 'rgba(56, 189, 248, 0.6)',
+                        data: data.wave_height || [],
                         borderColor: '#38bdf8',
-                        borderWidth: 1,
-                        yAxisID: 'yWave',
-                        order: 2
-                    },
-                    {
-                        label: '潮位 (cm)',
-                        data: tideData,
-                        type: 'line',
-                        borderColor: '#fb923c',
-                        backgroundColor: 'rgba(251, 146, 60, 0.1)',
-                        fill: true,
-                        tension: 0.4,
-                        yAxisID: 'yTide',
-                        order: 1
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                onClick: (e, elements) => {
-                    if (elements.length > 0) {
-                        const index = elements[0].index;
-                        updateMetrics(index);
-                    }
+                        backgroundColor: 'rgba(56, 189, 248, 0.2)',
+                        tension: 0.3,
+                        fill: true
+                    }]
                 },
-                scales: {
-                    x: {
-                        grid: { color: '#334155' },
-                        ticks: { color: '#94a3b8' }
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    onClick: (e, activeElements) => {
+                        if (activeElements.length > 0) {
+                            const index = activeElements[0].index;
+                            updateCards(index);
+                        }
                     },
-                    yWave: {
-                        type: 'linear',
-                        position: 'left',
-                        title: { display: true, text: '波高 (m)', color: '#38bdf8' },
-                        grid: { color: '#334155' },
-                        ticks: { color: '#38bdf8' },
-                        min: 0,
-                        max: 2.0
+                    scales: {
+                        x: {
+                            ticks: { color: '#94a3b8' },
+                            grid: { color: '#334155' }
+                        },
+                        y: {
+                            ticks: { color: '#94a3b8' },
+                            grid: { color: '#334155' }
+                        }
                     },
-                    yTide: {
-                        type: 'linear',
-                        position: 'right',
-                        title: { display: true, text: '潮位 (cm)', color: '#fb923c' },
-                        grid: { drawOnChartArea: false },
-                        ticks: { color: '#fb923c' },
-                        min: 0,
-                        max: 200
-                    }
-                },
-                plugins: {
-                    legend: {
-                        labels: { color: '#f8fafc' }
+                    plugins: {
+                        legend: { display: false }
                     }
                 }
-            }
-        });
+            });
 
-        // 初期表示の設定 (例: 12:00)
-        updateMetrics(3);
+            // 初期表示（最初の時間帯のデータ）
+            updateCards(0);
+        }
+
+        window.onload = init;
     </script>
 </body>
 </html>
