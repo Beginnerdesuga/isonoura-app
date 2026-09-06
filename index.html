@@ -16,6 +16,7 @@
             --accent-wind: #4ade80;
             --accent-weather: #facc15;
             --border-color: #334155;
+            --axis-width: 42px;
         }
 
         * {
@@ -33,6 +34,7 @@
             margin: 0 auto;
         }
 
+        /* ヘッダー */
         header {
             text-align: center;
             margin-bottom: 12px;
@@ -42,6 +44,7 @@
         .subtitle { font-size: 0.7rem; color: var(--text-secondary); }
         .location-note { font-size: 0.65rem; color: #64748b; margin-top: 2px; }
 
+        /* メトリクスグリッド */
         .metrics-grid {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
@@ -77,6 +80,7 @@
         .badge-onshore { background-color: #991b1b; color: #fca5a5; }
         .badge-cross { background-color: #854d0e; color: #fef08a; }
 
+        /* ヒント・表示切り替え */
         .scroll-hint {
             display: flex;
             justify-content: space-between;
@@ -94,13 +98,14 @@
             border-radius: 4px;
         }
 
+        /* グラフコンテナ */
         .chart-card {
             background-color: var(--card-bg);
             border: 1px solid var(--border-color);
             border-radius: 12px;
             position: relative;
-            overflow: hidden;
-            padding: 10px 0;
+            overflow: hidden; /* 右・下の溢れ（スライダー）を完全防止 */
+            padding: 10px 0 6px 0;
         }
 
         .chart-legend-header {
@@ -133,6 +138,7 @@
 
         .chart-scroll-wrapper {
             overflow-x: auto;
+            overflow-y: hidden; /* 縦スライダーを防止 */
             -webkit-overflow-scrolling: touch;
             position: relative;
         }
@@ -147,32 +153,59 @@
             position: relative;
         }
 
-        /* 左軸エリア：幅42pxに完全固定 */
+        /* 左軸領域 */
         .sticky-axis-container {
             position: sticky;
             left: 0;
             top: 0;
-            width: 42px;
-            height: 350px;
+            width: var(--axis-width);
+            height: 100%;
             z-index: 10;
             background-color: var(--card-bg);
             border-right: 1px solid rgba(51, 65, 85, 0.4);
             float: left;
+            display: flex;
+            flex-direction: column;
         }
 
+        /* 左側凡例ラベル表示エリア */
+        .axis-timeline-labels {
+            height: 65px;
+            margin-top: 6px;
+            padding-top: 6px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-around;
+            align-items: center;
+            background-color: var(--card-bg);
+        }
+
+        .axis-label-item {
+            height: 20px;
+            line-height: 20px;
+            font-size: 0.65rem;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        .axis-label-item.wave-label { color: var(--accent-wave); }
+        .axis-label-item.wind-val-label { color: var(--accent-wind); }
+        .axis-label-item.wind-dir-label { color: var(--text-secondary); }
+
         .main-chart-container {
-            margin-left: 42px;
+            margin-left: var(--axis-width);
             height: 350px;
             position: relative;
         }
 
+        /* タイムライン領域 */
         .timeline-wrapper {
             position: relative;
             border-top: 1px dashed var(--border-color);
             margin-top: 6px;
             padding-top: 6px;
             height: 65px;
-            margin-left: 42px; /* 左軸と完全に合わせる */
+            margin-left: var(--axis-width);
         }
 
         .timeline-col {
@@ -186,29 +219,29 @@
             user-select: none;
         }
 
+        .wave-dir-arrow, .wind-val, .wind-arrow {
+            height: 20px;
+            line-height: 20px;
+        }
+
         .wave-dir-arrow {
             font-size: 0.8rem;
             color: var(--accent-wave);
             font-weight: bold;
-            height: 20px;
-            line-height: 20px;
         }
 
         .wind-val {
             font-size: 0.7rem;
             font-weight: 700;
             color: var(--accent-wind);
-            height: 20px;
-            line-height: 20px;
         }
 
         .wind-arrow {
             font-size: 0.85rem;
             color: var(--text-primary);
-            height: 20px;
-            line-height: 20px;
         }
 
+        /* フッター・操作バー */
         .controls {
             display: flex;
             justify-content: space-between;
@@ -225,13 +258,16 @@
             font-size: 0.8rem;
             font-weight: 600;
             cursor: pointer;
+            transition: opacity 0.2s;
         }
+
+        .btn-refresh:hover { opacity: 0.9; }
 
         .last-update { font-size: 0.75rem; color: var(--text-secondary); }
 
         .loading-overlay {
             position: absolute;
-            top: 0; left: 0; right: 0; bottom: 0;
+            inset: 0;
             background: rgba(30, 41, 59, 0.9);
             border-radius: 12px;
             display: flex;
@@ -294,10 +330,17 @@
 
         <div class="chart-scroll-wrapper">
             <div class="chart-inner">
-                <div class="canvas-container">
-                    <div class="sticky-axis-container">
+                <div class="sticky-axis-container">
+                    <div style="height: 350px;">
                         <canvas id="axisChart"></canvas>
                     </div>
+                    <div class="axis-timeline-labels">
+                        <div class="axis-label-item wave-label">波向</div>
+                        <div class="axis-label-item wind-val-label">風速</div>
+                        <div class="axis-label-item wind-dir-label">風向</div>
+                    </div>
+                </div>
+                <div class="canvas-container">
                     <div class="main-chart-container">
                         <canvas id="marineChart"></canvas>
                     </div>
@@ -319,52 +362,51 @@
         let selectedIndex = 0;
         let nowIndex = 0;
 
+        // Chart.js プラグイン：選択線および下部タイムラインの同期
         const timeLineLinesPlugin = {
             id: 'timeLineLines',
             afterDraw: (chart) => {
                 const meta = chart.getDatasetMeta(0);
                 if (!meta || !meta.data || meta.data.length === 0) return;
-                
+
                 const topY = chart.scales.yWave.top;
                 const bottomY = chart.scales.yWave.bottom;
                 const ctx = chart.ctx;
 
-                if (nowIndex >= 0 && meta.data[nowIndex]) {
-                    const xNow = meta.data[nowIndex].x;
-                    ctx.save();
-                    ctx.beginPath();
-                    ctx.moveTo(xNow, topY);
-                    ctx.lineTo(xNow, bottomY);
-                    ctx.lineWidth = 2;
-                    ctx.strokeStyle = '#ef4444';
-                    ctx.setLineDash([4, 4]);
-                    ctx.stroke();
-                    ctx.restore();
-                }
+                const drawLine = (idx, color) => {
+                    if (idx >= 0 && meta.data[idx]) {
+                        const x = meta.data[idx].x;
+                        ctx.save();
+                        ctx.beginPath();
+                        ctx.moveTo(x, topY);
+                        ctx.lineTo(x, bottomY);
+                        ctx.lineWidth = 2;
+                        ctx.strokeStyle = color;
+                        ctx.setLineDash([4, 4]);
+                        ctx.stroke();
+                        ctx.restore();
+                    }
+                };
 
+                // 現在時刻の赤破線
+                drawLine(nowIndex, '#ef4444');
+
+                // 選択時刻の青破線
                 const targetIndex = chart.config.options.plugins.targetIndex;
-                if (targetIndex !== undefined && targetIndex !== nowIndex && meta.data[targetIndex]) {
-                    const xTarget = meta.data[targetIndex].x;
-                    ctx.save();
-                    ctx.beginPath();
-                    ctx.moveTo(xTarget, topY);
-                    ctx.lineTo(xTarget, bottomY);
-                    ctx.lineWidth = 2;
-                    ctx.strokeStyle = '#38bdf8';
-                    ctx.setLineDash([4, 4]);
-                    ctx.stroke();
-                    ctx.restore();
+                if (targetIndex !== undefined && targetIndex !== nowIndex) {
+                    drawLine(targetIndex, '#38bdf8');
                 }
 
-                // グラフ描画完了後に下部タイムラインの位置を各バーのX座標に同期（ズレ防止）
+                // タイムラインのX座標完全同期
                 syncTimelinePositions(chart);
             }
         };
 
         Chart.register(timeLineLinesPlugin);
 
+        // 天気コード変換ヘルパー
         function getWeatherInfo(code) {
-            if (code === null || code === undefined) return { icon: '--', text: '--' };
+            if (code == null) return { icon: '--', text: '--' };
             if (code === 0) return { icon: '☀️', text: '快晴' };
             if (code === 1 || code === 2) return { icon: '🌤️', text: '晴れ' };
             if (code === 3) return { icon: '☁️', text: 'くもり' };
@@ -376,25 +418,24 @@
             return { icon: '☁️', text: '不明' };
         }
 
+        // 方位・矢印変換ヘルパー
         function getDirectionInfo(deg) {
-            if (deg === null || deg === undefined) return { text: '--', arrow: '' };
+            if (deg == null) return { text: '--', arrow: '' };
             const directions = ['北', '北北東', '北東', '東北東', '東', '東南東', '南東', '南南東', '南', '南南西', '南西', '西南西', '西', '西北西', '北西', '北北西'];
             const arrows = ['↓', '↙', '↙', '↙', '←', '↖', '↖', '↖', '↑', '↗', '↗', '↗', '→', '↘', '↘', '↘'];
-            const index = Math.round(deg / 22.5) % 16;
-            return { text: directions[index], arrow: arrows[index] };
+            const idx = Math.round(deg / 22.5) % 16;
+            return { text: directions[idx], arrow: arrows[idx] };
         }
 
+        // 風種別判定ヘルパー
         function getWindType(deg) {
-            if (deg === null || deg === undefined) return { text: '--', class: '' };
-            if (deg >= 337.5 || deg <= 67.5) {
-                return { text: 'オフショア (面良)', class: 'badge-offshore' };
-            } else if (deg >= 157.5 && deg <= 247.5) {
-                return { text: 'オンショア (面荒)', class: 'badge-onshore' };
-            } else {
-                return { text: 'クロス (横風)', class: 'badge-cross' };
-            }
+            if (deg == null) return { text: '--', class: '' };
+            if (deg >= 337.5 || deg <= 67.5) return { text: 'オフショア (面良)', class: 'badge-offshore' };
+            if (deg >= 157.5 && deg <= 247.5) return { text: 'オンショア (面荒)', class: 'badge-onshore' };
+            return { text: 'クロス (横風)', class: 'badge-cross' };
         }
 
+        // APIデータ取得
         async function fetchData() {
             const loadingEl = document.getElementById('loading');
             loadingEl.style.display = 'flex';
@@ -404,8 +445,8 @@
 
             try {
                 const [resMarine, resWeather] = await Promise.all([fetch(urlMarine), fetch(urlWeather)]);
-                if (!resMarine.ok || !resWeather.ok) throw new Error('データ取得失敗');
-                
+                if (!resMarine.ok || !resWeather.ok) throw new Error('データ取得に失敗しました');
+
                 const dataMarine = await resMarine.json();
                 const dataWeather = await resWeather.json();
 
@@ -414,11 +455,12 @@
                     waveHeights: dataMarine.hourly.wave_height || [],
                     waveDirections: dataMarine.hourly.wave_direction || [],
                     seaLevels: dataMarine.hourly.sea_level_height_msl || [],
-                    windSpeeds: dataWeather.hourly.wind_speed_10m ? dataWeather.hourly.wind_speed_10m.map(v => v !== null ? (v / 3.6).toFixed(1) : null) : [],
+                    windSpeeds: dataWeather.hourly.wind_speed_10m ? dataWeather.hourly.wind_speed_10m.map(v => v != null ? (v / 3.6).toFixed(1) : null) : [],
                     windDirections: dataWeather.hourly.wind_direction_10m || [],
                     weatherCodes: dataWeather.hourly.weather_code || []
                 };
 
+                // 現在時刻に最も近いインデックスを検索
                 const now = new Date();
                 let minDiff = Infinity;
                 globalData.times.forEach((t, i) => {
@@ -440,6 +482,7 @@
             }
         }
 
+        // 上部カードの更新
         function updateMetricsCards(index) {
             if (!globalData || !globalData.times || !globalData.times[index]) return;
 
@@ -457,33 +500,29 @@
                 labelEl.style.background = '#0284c7';
             }
 
-            const curWave = (globalData.waveHeights[index] !== null && globalData.waveHeights[index] !== undefined) ? Number(globalData.waveHeights[index]).toFixed(2) : '--';
-            const curTide = (globalData.seaLevels[index] !== null && globalData.seaLevels[index] !== undefined) ? Number(globalData.seaLevels[index]).toFixed(2) : '--';
-            const curWindSpeed = (globalData.windSpeeds[index] !== null && globalData.windSpeeds[index] !== undefined) ? globalData.windSpeeds[index] : '--';
-            const curWindDirDeg = globalData.windDirections[index];
-            const windType = getWindType(curWindDirDeg);
+            const curWave = globalData.waveHeights[index] != null ? Number(globalData.waveHeights[index]).toFixed(2) : '--';
+            const curTide = globalData.seaLevels[index] != null ? Number(globalData.seaLevels[index]).toFixed(2) : '--';
+            const curWindSpeed = globalData.windSpeeds[index] != null ? globalData.windSpeeds[index] : '--';
+            const windType = getWindType(globalData.windDirections[index]);
+            const weatherInfo = getWeatherInfo(globalData.weatherCodes[index]);
 
-            const weatherCode = globalData.weatherCodes[index];
-            const weatherInfo = getWeatherInfo(weatherCode);
-
-            const todayWaveHeights = globalData.waveHeights.slice(0, 24).filter(v => v !== null && v !== undefined);
+            const todayWaveHeights = globalData.waveHeights.slice(0, 24).filter(v => v != null);
             const maxWaveVal = todayWaveHeights.length > 0 ? Math.max(...todayWaveHeights).toFixed(2) : '--';
 
-            let tideNotice = curTide !== '--' ? '高度 ' + curTide + 'm' : '--';
-            if (index + 1 < globalData.seaLevels.length && globalData.seaLevels[index + 1] !== null && globalData.seaLevels[index] !== null) {
-                const isRising = globalData.seaLevels[index + 1] > globalData.seaLevels[index];
-                tideNotice = isRising ? '上げ潮傾向' : '下げ潮傾向';
+            let tideNotice = curTide !== '--' ? `高度 ${curTide}m` : '--';
+            if (index + 1 < globalData.seaLevels.length && globalData.seaLevels[index + 1] != null && globalData.seaLevels[index] != null) {
+                tideNotice = globalData.seaLevels[index + 1] > globalData.seaLevels[index] ? '上げ潮傾向' : '下げ潮傾向';
             }
 
-            document.getElementById('currentWave').textContent = curWave !== '--' ? curWave + 'm' : '--';
-            document.getElementById('maxWave').textContent = '本日最大 ' + maxWaveVal + 'm';
-            document.getElementById('currentTide').textContent = curTide !== '--' ? curTide + 'm' : '--';
+            document.getElementById('currentWave').textContent = curWave !== '--' ? `${curWave}m` : '--';
+            document.getElementById('maxWave').textContent = `本日最大 ${maxWaveVal}m`;
+            document.getElementById('currentTide').textContent = curTide !== '--' ? `${curTide}m` : '--';
             document.getElementById('tideForecast').textContent = tideNotice;
-            document.getElementById('currentWind').textContent = curWindSpeed !== '--' ? curWindSpeed + 'm/s' : '--';
-            
+            document.getElementById('currentWind').textContent = curWindSpeed !== '--' ? `${curWindSpeed}m/s` : '--';
+
             const badgeEl = document.getElementById('windTypeBadge');
             badgeEl.textContent = windType.text;
-            badgeEl.className = 'wind-badge ' + windType.class;
+            badgeEl.className = `wind-badge ${windType.class}`;
 
             document.getElementById('currentWeather').textContent = weatherInfo.icon;
             document.getElementById('weatherText').textContent = weatherInfo.text;
@@ -512,10 +551,7 @@
 
             const labels = globalData.times.map(t => {
                 const d = new Date(t);
-                const month = d.getMonth() + 1;
-                const date = d.getDate();
-                const hours = d.getHours();
-                return hours === 0 ? `${month}/${date}` : `${hours}`;
+                return d.getHours() === 0 ? `${d.getMonth() + 1}/${d.getDate()}` : `${d.getHours()}`;
             });
 
             updateMetricsCards(selectedIndex);
@@ -523,19 +559,18 @@
             renderChart(labels, globalData.times, globalData.waveHeights, globalData.seaLevels);
         }
 
+        // タイムライン位置の動的同期
         function syncTimelinePositions(chart) {
             const meta = chart.getDatasetMeta(0);
             if (!meta || !meta.data) return;
 
             const cols = document.querySelectorAll('.timeline-col');
+            const stepWidth = meta.data.length > 1 ? meta.data[1].x - meta.data[0].x : 0;
+
             meta.data.forEach((bar, i) => {
                 if (cols[i]) {
-                    // バーの正確なX座標にHTML要素の位置を直接ピクセルで指定
                     cols[i].style.left = `${bar.x}px`;
-                    if (meta.data.length > 1) {
-                        const stepWidth = meta.data[1].x - meta.data[0].x;
-                        cols[i].style.width = `${stepWidth}px`;
-                    }
+                    if (stepWidth > 0) cols[i].style.width = `${stepWidth}px`;
                 }
             });
         }
@@ -547,7 +582,7 @@
             if (myChart) myChart.destroy();
             if (axisChart) axisChart.destroy();
 
-            const validWaveHeights = waveData.filter(v => v !== null && v !== undefined);
+            const validWaveHeights = waveData.filter(v => v != null);
             const maxWaveVal = validWaveHeights.length > 0 ? Math.max(...validWaveHeights) : 0;
             const targetMax = maxWaveVal > 2.0 ? Math.ceil(maxWaveVal * 1.1 * 10) / 10 : 2.0;
 
@@ -561,9 +596,7 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    layout: {
-                        padding: { left: 0, right: 0, top: 0, bottom: 0 }
-                    },
+                    layout: { padding: 0 },
                     plugins: { legend: { display: false }, tooltip: { enabled: false } },
                     scales: {
                         x: { display: false },
@@ -572,14 +605,8 @@
                             position: 'left',
                             beginAtZero: true,
                             max: targetMax,
-                            afterFit: (scale) => {
-                                scale.width = 42; // 目盛りエリアの幅を完全に42pxで確定
-                            },
-                            ticks: { 
-                                color: '#38bdf8',
-                                font: { size: 10, weight: '600' },
-                                padding: 3
-                            },
+                            afterFit: (scale) => { scale.width = 42; },
+                            ticks: { color: '#38bdf8', font: { size: 10, weight: '600' }, padding: 3 },
                             grid: { display: false }
                         }
                     }
@@ -623,9 +650,7 @@
                             selectIndex(activeElements[0].index);
                         } else {
                             const rect = e.chart.canvas.getBoundingClientRect();
-                            const x = e.x - rect.left;
-                            const xAxis = e.chart.scales.x;
-                            const index = xAxis.getValueForPixel(x);
+                            const index = e.chart.scales.x.getValueForPixel(e.x - rect.left);
                             if (index >= 0 && index < rawTimes.length) {
                                 selectIndex(index);
                             }
@@ -657,32 +682,27 @@
                             type: 'linear',
                             position: 'right',
                             grid: { display: false },
-                            afterFit: (scale) => {
-                                scale.width = 42; // 右側目盛り幅も42px固定とし左右対称を担保
-                            },
-                            ticks: {
-                                color: '#fb923c',
-                                font: { size: 10, weight: '600' },
-                                padding: 3
-                            }
+                            afterFit: (scale) => { scale.width = 42; },
+                            ticks: { color: '#fb923c', font: { size: 10, weight: '600' }, padding: 3 }
                         }
                     }
                 }
             });
         }
 
+        // タイムライン表示生成
         function renderTimelineData(waveDirections, windSpeeds, windDirections) {
             const container = document.getElementById('timelineWrapper');
             container.innerHTML = '';
 
             if (!waveDirections) return;
 
+            const fragment = document.createDocumentFragment();
+
             waveDirections.forEach((wDeg, i) => {
-                const wSpeed = windSpeeds ? windSpeeds[i] : null;
-                const windDeg = windDirections ? windDirections[i] : null;
-                
                 const waveInfo = getDirectionInfo(wDeg);
-                const windInfo = getDirectionInfo(windDeg);
+                const windInfo = getDirectionInfo(windDirections ? windDirections[i] : null);
+                const wSpeed = windSpeeds && windSpeeds[i] != null ? windSpeeds[i] : '--';
 
                 const col = document.createElement('div');
                 col.className = 'timeline-col';
@@ -690,11 +710,13 @@
 
                 col.innerHTML = `
                     <div class="wave-dir-arrow" title="波向: ${waveInfo.text}">${waveInfo.arrow}</div>
-                    <div class="wind-val">${wSpeed !== null && wSpeed !== undefined ? wSpeed : '--'}</div>
+                    <div class="wind-val">${wSpeed}</div>
                     <div class="wind-arrow" title="風向: ${windInfo.text}">${windInfo.arrow}</div>
                 `;
-                container.appendChild(col);
+                fragment.appendChild(col);
             });
+
+            container.appendChild(fragment);
         }
 
         window.onload = fetchData;
