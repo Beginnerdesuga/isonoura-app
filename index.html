@@ -15,7 +15,6 @@
             --accent-tide: #fb923c;
             --accent-wind: #4ade80;
             --border-color: #334155;
-            --sticky-width: 42px; /* 固定目盛列の幅 */
         }
 
         * {
@@ -99,12 +98,42 @@
             border-radius: 12px;
             position: relative;
             overflow: hidden;
+            padding: 10px 0;
         }
+
+        /* 上部に配置する凡例（スリム化・横書き） */
+        .chart-legend-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 12px 8px 12px;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 6px;
+        }
+
+        .legend-item {
+            font-size: 0.7rem;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .legend-color-box {
+            width: 10px;
+            height: 10px;
+            border-radius: 2px;
+        }
+
+        .legend-wave { color: var(--accent-wave); }
+        .legend-wave .legend-color-box { background-color: var(--accent-wave); }
+        .legend-tide { color: var(--accent-tide); }
+        .legend-tide .legend-color-box { background-color: var(--accent-tide); }
 
         .chart-scroll-wrapper {
             overflow-x: auto;
             -webkit-overflow-scrolling: touch;
-            padding: 24px 0 10px 0;
+            position: relative;
         }
 
         .chart-inner {
@@ -112,109 +141,28 @@
             position: relative;
         }
 
-        /* 共通の固定列スタイル */
-        .sticky-column {
-            position: absolute;
-            top: 24px;
-            bottom: 0;
-            width: var(--sticky-width);
-            background-color: var(--card-bg);
-            z-index: 10;
-            display: flex;
-            flex-direction: column;
-            pointer-events: none;
-            padding-bottom: 10px;
-        }
-
-        /* 左固定列（波高） */
-        .sticky-left-column {
-            left: 0;
-            border-right: 1px solid var(--border-color);
-        }
-
-        /* 右固定列（潮位） */
-        .sticky-right-column {
-            right: 0;
-            border-left: 1px solid var(--border-color);
-        }
-
-        .sticky-wave-area {
-            height: 386px;
-            position: relative;
-            border-bottom: 1px dashed var(--border-color);
-        }
-
-        .sticky-label-wave {
-            position: absolute;
-            top: -18px;
-            left: 4px;
-            font-size: 0.65rem;
-            font-weight: bold;
-            color: var(--accent-wave);
-            white-space: nowrap;
-        }
-
-        .sticky-label-tide {
-            position: absolute;
-            top: -18px;
-            right: 4px;
-            font-size: 0.65rem;
-            font-weight: bold;
-            color: var(--accent-tide);
-            white-space: nowrap;
-        }
-
-        .sticky-ticks {
-            position: absolute;
-            top: 0;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            font-size: 0.6rem;
-            font-weight: 600;
-        }
-
-        .sticky-ticks.wave { color: var(--accent-wave); }
-        .sticky-ticks.tide { color: var(--accent-tide); }
-
-        .sticky-tick-left {
-            position: absolute;
-            right: 6px;
-            transform: translateY(50%);
-        }
-
-        .sticky-tick-right {
-            position: absolute;
-            left: 6px;
-            transform: translateY(50%);
-        }
-
-        .sticky-timeline-labels {
-            margin-top: 6px;
-            padding-top: 6px;
-            display: flex;
-            flex-direction: column;
-            gap: 0;
-            font-size: 0.65rem;
-            font-weight: 600;
-            color: var(--text-secondary);
-            text-align: center;
-        }
-
-        .sticky-timeline-labels div {
-            height: 20px;
-            line-height: 20px;
-        }
-
-        .sticky-timeline-labels .label-wave-dir { color: var(--accent-wave); }
-        .sticky-timeline-labels .label-wind-val { color: var(--accent-wind); }
-
-        /* グラフ描画エリアとタイムラインの左右パディングを厳密に同期 */
         .canvas-container {
-            height: 380px;
+            height: 350px;
             position: relative;
-            padding-left: var(--sticky-width);
-            padding-right: var(--sticky-width);
+        }
+
+        /* 左軸固定用のコンテナ設定 */
+        .sticky-axis-container {
+            position: sticky;
+            left: 0;
+            top: 0;
+            width: 42px;
+            height: 350px;
+            z-index: 10;
+            background-color: var(--card-bg);
+            border-right: 1px solid rgba(51, 65, 85, 0.4);
+            float: left;
+        }
+
+        .main-chart-container {
+            margin-left: 42px;
+            height: 350px;
+            position: relative;
         }
 
         .timeline-wrapper {
@@ -222,8 +170,8 @@
             border-top: 1px dashed var(--border-color);
             margin-top: 6px;
             padding-top: 6px;
-            padding-left: var(--sticky-width);
-            padding-right: var(--sticky-width);
+            padding-left: 42px;
+            padding-right: 42px;
         }
 
         .timeline-data {
@@ -279,7 +227,6 @@
             padding: 6px 14px;
             font-size: 0.8rem;
             font-weight: 600;
-            cursor: pointer;
         }
 
         .last-update { font-size: 0.75rem; color: var(--text-secondary); }
@@ -330,32 +277,30 @@
     
     <div class="chart-card">
         <div id="loading" class="loading-overlay">取得中...</div>
-        
-        <!-- 左固定列（波高） -->
-        <div class="sticky-column sticky-left-column">
-            <div class="sticky-wave-area">
-                <div class="sticky-label-wave">波高(m)</div>
-                <div class="sticky-ticks wave" id="stickyWaveTicks"></div>
-            </div>
-            <div class="sticky-timeline-labels">
-                <div class="label-wave-dir">波向</div>
-                <div class="label-wind-val">風速</div>
-                <div>風向</div>
-            </div>
-        </div>
 
-        <!-- 右固定列（潮位） -->
-        <div class="sticky-column sticky-right-column">
-            <div class="sticky-wave-area">
-                <div class="sticky-label-tide">潮位(m)</div>
-                <div class="sticky-ticks tide" id="stickyTideTicks"></div>
+        <!-- スリム化した上部凡例 -->
+        <div class="chart-legend-header">
+            <div class="legend-item legend-wave">
+                <span class="legend-color-box"></span>
+                <span>波高 (m)</span>
+            </div>
+            <div class="legend-item legend-tide">
+                <span class="legend-color-box"></span>
+                <span>潮位 (m)</span>
             </div>
         </div>
 
         <div class="chart-scroll-wrapper">
             <div class="chart-inner">
                 <div class="canvas-container">
-                    <canvas id="marineChart"></canvas>
+                    <!-- 左側の軸固定用キャンバス -->
+                    <div class="sticky-axis-container">
+                        <canvas id="axisChart"></canvas>
+                    </div>
+                    <!-- メインデータ用キャンバス -->
+                    <div class="main-chart-container">
+                        <canvas id="marineChart"></canvas>
+                    </div>
                 </div>
                 <div class="timeline-wrapper">
                     <div class="timeline-data" id="timelineData"></div>
@@ -371,20 +316,20 @@
 
     <script>
         let myChart = null;
+        let axisChart = null;
         let globalData = null;
         let selectedIndex = 0;
         let nowIndex = 0;
 
+        // 縦線描画プラグイン（メインチャート用）
         const timeLineLinesPlugin = {
             id: 'timeLineLines',
             afterDraw: (chart) => {
                 const meta = chart.getDatasetMeta(0);
-                if (!meta || !meta.data.length) return;
                 const topY = chart.scales.yWave.top;
                 const bottomY = chart.scales.yWave.bottom;
                 const ctx = chart.ctx;
 
-                // 現在地の赤点線
                 if (nowIndex >= 0 && meta.data[nowIndex]) {
                     const xNow = meta.data[nowIndex].x;
                     ctx.save();
@@ -398,7 +343,6 @@
                     ctx.restore();
                 }
 
-                // タップ選択された位置の青点線
                 const targetIndex = chart.config.options.plugins.targetIndex;
                 if (targetIndex !== undefined && targetIndex !== nowIndex && meta.data[targetIndex]) {
                     const xTarget = meta.data[targetIndex].x;
@@ -415,47 +359,7 @@
             }
         };
 
-        // 固定目盛をChart.jsのスケールと自動同期するプラグイン
-        const syncStickyTicksPlugin = {
-            id: 'syncStickyTicks',
-            afterRender: (chart) => {
-                const chartHeight = chart.height;
-
-                // 左軸（波高）の同期
-                const scaleWave = chart.scales.yWave;
-                if (scaleWave) {
-                    const containerWave = document.getElementById('stickyWaveTicks');
-                    containerWave.innerHTML = '';
-                    scaleWave.ticks.forEach(tick => {
-                        const yPixel = scaleWave.getPixelForValue(tick.value);
-                        const bottomPos = chartHeight - yPixel;
-                        const tickDiv = document.createElement('div');
-                        tickDiv.className = 'sticky-tick-left';
-                        tickDiv.style.bottom = bottomPos + 'px';
-                        tickDiv.textContent = tick.value.toFixed(1);
-                        containerWave.appendChild(tickDiv);
-                    });
-                }
-
-                // 右軸（潮位）の同期
-                const scaleTide = chart.scales.yTide;
-                if (scaleTide) {
-                    const containerTide = document.getElementById('stickyTideTicks');
-                    containerTide.innerHTML = '';
-                    scaleTide.ticks.forEach(tick => {
-                        const yPixel = scaleTide.getPixelForValue(tick.value);
-                        const bottomPos = chartHeight - yPixel;
-                        const tickDiv = document.createElement('div');
-                        tickDiv.className = 'sticky-tick-right';
-                        tickDiv.style.bottom = bottomPos + 'px';
-                        tickDiv.textContent = tick.value.toFixed(1);
-                        containerTide.appendChild(tickDiv);
-                    });
-                }
-            }
-        };
-
-        Chart.register(timeLineLinesPlugin, syncStickyTicksPlugin);
+        Chart.register(timeLineLinesPlugin);
 
         function getDirectionInfo(deg) {
             if (deg === null || deg === undefined) return { text: '--', arrow: '' };
@@ -595,15 +499,50 @@
 
         function renderChart(labels, rawTimes, waveData, tideData) {
             const ctx = document.getElementById('marineChart').getContext('2d');
+            const axisCtx = document.getElementById('axisChart').getContext('2d');
+
             if (myChart) myChart.destroy();
+            if (axisChart) axisChart.destroy();
 
             const maxWaveVal = Math.max(...waveData.filter(v => v !== null), 0);
-            const targetMaxWave = maxWaveVal > 2.0 ? Math.ceil(maxWaveVal * 1.1 * 10) / 10 : 2.0;
+            const targetMax = maxWaveVal > 2.0 ? Math.ceil(maxWaveVal * 1.1 * 10) / 10 : 2.0;
 
-            const validTide = tideData.filter(v => v !== null);
-            const minTide = validTide.length ? Math.floor(Math.min(...validTide) * 10) / 10 : -0.5;
-            const maxTide = validTide.length ? Math.ceil(Math.max(...validTide) * 10) / 10 : 1.5;
+            const tickFontColors = rawTimes.map(t => (new Date(t).getHours() % 3 === 0) ? '#f8fafc' : '#64748b');
+            const tickFontWeights = rawTimes.map(t => (new Date(t).getHours() % 3 === 0) ? 'bold' : 'normal');
+            const tickFontSizes = rawTimes.map(t => {
+                const h = new Date(t).getHours();
+                return (h === 0 || h % 3 === 0) ? 11 : 9;
+            });
 
+            // 1. 左側固定用の軸描写用ダミーチャート
+            axisChart = new Chart(axisCtx, {
+                type: 'bar',
+                data: {
+                    labels: [''],
+                    datasets: [{ data: [0], yAxisID: 'yWave' }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false }, tooltip: { enabled: false } },
+                    scales: {
+                        x: { display: false },
+                        yWave: {
+                            type: 'linear',
+                            position: 'left',
+                            beginAtZero: true,
+                            max: targetMax,
+                            ticks: { 
+                                color: '#38bdf8',
+                                font: { size: 10, weight: '600' }
+                            },
+                            grid: { display: false }
+                        }
+                    }
+                }
+            });
+
+            // 2. メインのグラフ（左軸の目盛り表示は非表示にして余白調整）
             myChart = new Chart(ctx, {
                 type: 'bar',
                 data: {
@@ -612,22 +551,20 @@
                         {
                             label: '波高 (m)',
                             data: waveData,
-                            backgroundColor: 'rgba(56, 189, 248, 0.85)',
+                            backgroundColor: 'rgba(56, 189, 248, 0.65)',
                             borderColor: '#38bdf8',
                             borderWidth: 1,
                             yAxisID: 'yWave',
                             order: 2
                         },
                         {
-                            type: 'line',
                             label: '潮位 (m)',
                             data: tideData,
+                            type: 'line',
                             borderColor: '#fb923c',
-                            backgroundColor: 'rgba(251, 146, 60, 0.2)',
                             borderWidth: 2.5,
-                            pointRadius: 0,
-                            pointHoverRadius: 4,
                             tension: 0.4,
+                            pointRadius: 0,
                             yAxisID: 'yTide',
                             order: 1
                         }
@@ -636,54 +573,51 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    layout: {
-                        padding: { left: 0, right: 0, top: 10, bottom: 0 }
-                    },
-                    plugins: {
-                        legend: { display: false },
-                        tooltip: {
-                            mode: 'index',
-                            intersect: false,
-                            callbacks: {
-                                title: (items) => {
-                                    if (!items.length) return '';
-                                    const idx = items[0].dataIndex;
-                                    const d = new Date(rawTimes[idx]);
-                                    return `${d.getMonth() + 1}/${d.getDate()} ${d.getHours()}:00`;
-                                }
-                            }
-                        },
-                        targetIndex: selectedIndex
-                    },
                     onClick: (e, elements) => {
                         if (elements.length > 0) {
                             selectIndex(elements[0].index);
                         }
                     },
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: { display: false },
+                        targetIndex: selectedIndex
+                    },
                     scales: {
                         x: {
-                            grid: { color: 'rgba(51, 65, 85, 0.4)' },
-                            ticks: {
-                                color: (ctx) => (rawTimes[ctx.index] && new Date(rawTimes[ctx.index]).getHours() % 3 === 0) ? '#f8fafc' : '#64748b',
-                                font: (ctx) => ({
-                                    weight: (rawTimes[ctx.index] && new Date(rawTimes[ctx.index]).getHours() % 3 === 0) ? 'bold' : 'normal',
-                                    size: 11
-                                })
-                            }
+                            ticks: { 
+                                autoSkip: false,
+                                maxRotation: 0, 
+                                font: function(context) {
+                                    return {
+                                        size: tickFontSizes[context.index] || 10,
+                                        weight: tickFontWeights[context.index] || 'normal'
+                                    };
+                                },
+                                color: function(context) {
+                                    return tickFontColors[context.index] || '#94a3b8';
+                                }
+                            },
+                            grid: { color: 'rgba(51, 65, 85, 0.3)' }
                         },
                         yWave: {
                             type: 'linear',
                             position: 'left',
-                            min: 0,
-                            max: targetMaxWave,
-                            display: false // JSで描画をオフにし固定列へ集約
+                            display: true,
+                            beginAtZero: true,
+                            max: targetMax,
+                            ticks: { display: false }, // 左軸の目盛りテキストは固定軸側に任せるため非表示
+                            grid: { color: 'rgba(51, 65, 85, 0.2)' }
                         },
                         yTide: {
                             type: 'linear',
                             position: 'right',
-                            min: minTide,
-                            max: maxTide,
-                            display: false // JSで描画をオフにし固定列へ集約
+                            display: true,
+                            ticks: { 
+                                color: '#fb923c',
+                                font: { size: 10, weight: '600' }
+                            },
+                            grid: { drawOnChartArea: false }
                         }
                     }
                 }
@@ -694,25 +628,24 @@
             const container = document.getElementById('timelineData');
             container.innerHTML = '';
 
-            waveDirs.forEach((wDeg, i) => {
+            waveDirs.forEach((waveDeg, i) => {
+                const waveInfo = getDirectionInfo(waveDeg);
+                const windSpeed = windSpeeds[i];
+                const windInfo = getDirectionInfo(windDirs[i]);
+
                 const col = document.createElement('div');
                 col.className = 'timeline-col';
                 col.onclick = () => selectIndex(i);
-
-                const waveInfo = getDirectionInfo(wDeg);
-                const windInfo = getDirectionInfo(windDirs[i]);
-                const speed = windSpeeds[i] !== null ? windSpeeds[i] : '--';
-
                 col.innerHTML = `
-                    <div class="wave-dir-arrow" title="${waveInfo.text}">${waveInfo.arrow}</div>
-                    <div class="wind-val">${speed}</div>
-                    <div class="wind-arrow" title="${windInfo.text}">${windInfo.arrow}</div>
+                    <div class="wave-dir-arrow">${waveInfo.arrow}</div>
+                    <div class="wind-val">${windSpeed !== null ? windSpeed : '--'}</div>
+                    <div class="wind-arrow">${windInfo.arrow}</div>
                 `;
                 container.appendChild(col);
             });
         }
 
-        fetchData();
+        window.addEventListener('DOMContentLoaded', fetchData);
     </script>
 </body>
 </html>
