@@ -456,13 +456,48 @@
             return { text: directions[idx], arrow: arrows[idx] };
         }
 
-        // 風種別判定ヘルパー
-        function getWindType(deg) {
-            if (deg == null) return { text: '--', class: '' };
-            if (deg >= 337.5 || deg <= 67.5) return { text: 'オフショア (面良)', class: 'badge-offshore' };
-            if (deg >= 157.5 && deg <= 247.5) return { text: 'オンショア (面荒)', class: 'badge-onshore' };
-            return { text: 'クロス (横風)', class: 'badge-cross' };
+        // 風種別・コンディション判定ヘルパー
+function getWindType(deg, speed) {
+    if (deg == null || speed == null) return { text: '--', class: '' };
+    
+    const s = Number(speed); // 風速(m/s)
+
+    // 1. 無風〜極弱風（風向問わずクリーン）
+    if (s < 2.5) {
+        return { text: '無風クリーン', class: 'badge-offshore' };
+    }
+
+    // 風向の判定（北〜東北東: オフショア / 南南東〜西南西: オンショア）
+    const isOffshore = (deg >= 337.5 || deg <= 67.5);
+    const isOnshore = (deg >= 157.5 && deg <= 247.5);
+
+    // 2. オフショアの場合
+    if (isOffshore) {
+        if (s <= 5.5) {
+            return { text: 'オフショア 面良し', class: 'badge-offshore' };
+        } else if (s <= 8.5) {
+            return { text: '強オフ 面煽られ', class: 'badge-cross' }; // 黄色系バッジ
+        } else {
+            return { text: '抑圧強オフ 難あり', class: 'badge-onshore' }; // 赤系バッジ
         }
+    }
+
+    // 3. オンショアの場合
+    if (isOnshore) {
+        if (s <= 4.0) {
+            return { text: '弱オン ざわつき', class: 'badge-cross' };
+        } else {
+            return { text: 'オンショア 面荒れ', class: 'badge-onshore' };
+        }
+    }
+
+    // 4. クロス（横風）の場合
+    if (s <= 5.0) {
+        return { text: 'クロス風 影響小', class: 'badge-cross' };
+    } else {
+        return { text: 'クロス風 面影響あり', class: 'badge-onshore' };
+    }
+}
 
         // APIデータ取得
         async function fetchData() {
@@ -532,7 +567,7 @@
             const curWave = globalData.waveHeights[index] != null ? Number(globalData.waveHeights[index]).toFixed(2) : '--';
             const curTide = globalData.seaLevels[index] != null ? Number(globalData.seaLevels[index]).toFixed(2) : '--';
             const curWindSpeed = globalData.windSpeeds[index] != null ? globalData.windSpeeds[index] : '--';
-            const windType = getWindType(globalData.windDirections[index]);
+            const windType = getWindType(globalData.windDirections[index], curWindSpeed);
             const weatherInfo = getWeatherInfo(globalData.weatherCodes[index]);
 
             const todayWaveHeights = globalData.waveHeights.slice(0, 24).filter(v => v != null);
