@@ -303,10 +303,15 @@
             <div id="windTypeBadge" class="wind-badge">--</div>
         </div>
         <div class="metric-card">
-            <div class="metric-label">天気</div>
-            <div class="metric-sub" id="weatherText">--</div>
-            <div class="metric-value weather" id="currentWeather">--</div>
-        </div>
+    <!-- 1行目: 天気 / 晴れ（横並び） -->
+    <div class="weather-label-group">
+        <span class="metric-label">天気</span>
+        <span class="weather-slash">/</span>
+        <span class="metric-sub weather-inline-text" id="weatherText">--</span>
+    </div>
+    <!-- 2行目: 天気マーク -->
+    <div class="metric-value weather" id="currentWeather">--</div>
+</div>
     </div>
 
     <div class="scroll-hint">
