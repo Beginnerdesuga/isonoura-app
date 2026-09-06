@@ -131,10 +131,6 @@
             font-weight: bold;
             font-size: 0.9rem;
         }
-
-        .weather-icon-cell {
-            font-size: 1rem;
-        }
     </style>
 </head>
 <body>
@@ -145,6 +141,7 @@
         <div class="location-note">※風向き判定：オフショア(北〜北東) / オンショア(南〜南西)</div>
     </header>
 
+    <!-- 上部カードエリア（4列表示） -->
     <div class="metrics-grid">
         <div class="metric-card">
             <div class="metric-label">波高 / 周期</div>
@@ -166,7 +163,7 @@
         <div class="metric-card">
             <div class="metric-label">天気・気温</div>
             <div class="metric-value weather" id="current-weather">☀️ 晴れ</div>
-            <div class="metric-sub" id="current-temp">24℃</div>
+            <div class="metric-sub" id="current-temp">25℃</div>
         </div>
     </div>
 
@@ -180,9 +177,8 @@
             <div class="chart-container-inner" id="chart-inner">
                 <canvas id="comboChart"></canvas>
             </div>
+            <!-- 下部テーブル（風向・風速のみの元構成） -->
             <table class="timeline-table" id="timeline-table">
-                <tr id="row-weather"></tr>
-                <tr id="row-temp"></tr>
                 <tr id="row-wind-dir"></tr>
                 <tr id="row-wind-speed"></tr>
             </table>
@@ -190,7 +186,7 @@
     </div>
 
     <script>
-        // 天気コードに応じたアイコン・ラベルのマップ
+        // 天気コードと表示用テキストの対応表
         const weatherMap = {
             'sunny': { icon: '☀️', label: '晴れ' },
             'cloudy': { icon: '☁️', label: '曇り' },
@@ -198,7 +194,7 @@
             'partly_cloudy': { icon: '⛅', label: '晴れ/曇り' }
         };
 
-        // サンプルデータ（天気・気温を追加）
+        // サンプルデータ（各時刻の天気・気温をデータ内に保持）
         const hourlyData = [
             { time: '03:00', wave: 0.6, period: 5.5, tide: 80, windSpeed: 3.1, windDirStr: '北北東', windDeg: 22.5, type: 'offshore', weather: 'sunny', temp: 19 },
             { time: '06:00', wave: 0.7, period: 5.8, tide: 120, windSpeed: 2.8, windDirStr: '北', windDeg: 0, type: 'offshore', weather: 'sunny', temp: 21 },
@@ -209,7 +205,7 @@
             { time: '21:00', wave: 0.5, period: 5.2, tide: 135, windSpeed: 2.0, windDirStr: '西北西', windDeg: 292.5, type: 'offshore', weather: 'cloudy', temp: 20 }
         ];
 
-        // 各要素の取得
+        // カード要素の取得
         const currentWaveEl = document.getElementById('current-wave');
         const currentPeriodEl = document.getElementById('current-period');
         const currentTideEl = document.getElementById('current-tide');
@@ -219,27 +215,12 @@
         const currentTempEl = document.getElementById('current-temp');
         const selectedTimeEl = document.getElementById('selected-time');
 
-        // タイムラインテーブルの構築
-        const rowWeather = document.getElementById('row-weather');
-        const rowTemp = document.getElementById('row-temp');
+        // 下部テーブル行の取得
         const rowWindDir = document.getElementById('row-wind-dir');
         const rowWindSpeed = document.getElementById('row-wind-speed');
 
+        // テーブル生成（風向矢印と風速のみ）
         hourlyData.forEach(d => {
-            const wInfo = weatherMap[d.weather] || { icon: '❓', label: '-' };
-
-            // 天気アイコン
-            const tdWeather = document.createElement('td');
-            tdWeather.className = 'weather-icon-cell';
-            tdWeather.innerHTML = wInfo.icon;
-            tdWeather.title = wInfo.label;
-            rowWeather.appendChild(tdWeather);
-
-            // 気温
-            const tdTemp = document.createElement('td');
-            tdTemp.innerText = `${d.temp}℃`;
-            rowTemp.appendChild(tdTemp);
-
             // 風向矢印
             const tdDir = document.createElement('td');
             tdDir.innerHTML = `<span class="wind-arrow" style="transform: rotate(${d.windDeg}deg); display:inline-block;">↓</span>`;
@@ -251,7 +232,7 @@
             rowWindSpeed.appendChild(tdSpeed);
         });
 
-        // 選択されたカードの情報を更新する関数
+        // タップ時に上部カードの表示情報を更新する関数
         function updateMetrics(index) {
             const data = hourlyData[index];
             const wInfo = weatherMap[data.weather] || { icon: '❓', label: '-' };
@@ -264,7 +245,7 @@
             currentWeatherEl.innerText = `${wInfo.icon} ${wInfo.label}`;
             currentTempEl.innerText = `${data.temp}℃`;
 
-            // バッジの更新
+            // 風向バッジ更新
             if (data.type === 'offshore') {
                 currentWindBadgeEl.className = 'wind-badge badge-offshore';
                 currentWindBadgeEl.innerText = 'オフショア';
@@ -277,7 +258,7 @@
             }
         }
 
-        // Chart.js の初期化
+        // Chart.js 初期化
         const ctx = document.getElementById('comboChart').getContext('2d');
         const labels = hourlyData.map(d => d.time);
         const waveData = hourlyData.map(d => d.wave);
@@ -351,7 +332,7 @@
             }
         });
 
-        // 初期表示の設定 (例: 12:00のインデックス3を選択)
+        // 初期表示の設定 (例: 12:00)
         updateMetrics(3);
     </script>
 </body>
