@@ -686,9 +686,40 @@
                         }
                     },
                     plugins: {
-                        legend: { display: false },
-                        targetIndex: selectedIndex
-                    },
+    legend: { display: false },
+    targetIndex: selectedIndex,
+    
+    // ↓ ここから追加
+    tooltip: {
+        filter: function(tooltipItem) {
+            return tooltipItem.datasetIndex === 0; // 波高（棒グラフ）のみツールチップを表示
+        },
+        callbacks: {
+            title: function(tooltipItems) {
+                if (!tooltipItems.length) return '';
+                const index = tooltipItems[0].dataIndex;
+                const dateStr = rawTimes[index];
+                
+                if (!dateStr) return '';
+
+                const d = new Date(dateStr);
+                const month = d.getMonth() + 1;
+                const date = d.getDate();
+                const hours = d.getHours().toString().padStart(2, '0');
+                const days = ['日', '月', '火', '水', '木', '金', '土'];
+                const dayName = days[d.getDay()];
+
+                return `${month}/${date}(${dayName}) ${hours}:00`;
+            },
+            label: function(context) {
+                const val = context.parsed.y;
+                if (val == null) return '';
+                return `波高: ${Number(val).toFixed(2)}m`;
+            }
+        }
+    }
+    // ↑ ここまで追加
+},
                     scales: {
                         x: {
                             grid: { color: 'rgba(51, 65, 85, 0.5)' },
