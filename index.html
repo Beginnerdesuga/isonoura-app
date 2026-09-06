@@ -276,6 +276,30 @@
             font-weight: 600;
             z-index: 20;
         }
+        /* 1行目を横並び・中央揃えにする設定 */
+.weather-label-group {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 2px; /* 要素同士の間隔 */
+}
+
+/* スラッシュの装飾 */
+.weather-slash {
+    font-size: 0.6rem;
+    color: var(--text-secondary);
+}
+
+/* 横並び時のテキスト余白調整 */
+.weather-inline-text {
+    margin-top: 0 !important;
+}
+
+/* 天気マークのサイズと余白調整 */
+.metric-value.weather {
+    font-size: 1.3rem;
+    margin-top: 2px;
+}
     </style>
 </head>
 <body>
