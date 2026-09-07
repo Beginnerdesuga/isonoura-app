@@ -413,7 +413,7 @@
         const DAY_END_HOUR = 18;
 
         function isDaytime(hour) {
-            return hour >= DAY_START_HOUR && hour < DAY_END_HOUR;
+            return hour >= DAY_START_HOUR && hour <= DAY_END_HOUR;
         }
 
         // Chart.jsプラグイン：グラフ背景に昼夜の帯を描画
