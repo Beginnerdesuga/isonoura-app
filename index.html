@@ -66,7 +66,7 @@
         .metric-value.wave { color: var(--accent-wave); }
         .metric-value.tide { color: var(--accent-tide); }
         .metric-value.wind { color: var(--accent-wind); }
-        .metric-value.weather { color: var(--accent-weather); font-size: 1.3rem; }
+        .metric-value.weather { color: var(--accent-weather); font-size: 1.8rem; margin-top: 2px; }
 
         .wind-badge {
             display: inline-block;
@@ -79,6 +79,23 @@
         .badge-offshore { background-color: #166534; color: #4ade80; }
         .badge-onshore { background-color: #991b1b; color: #fca5a5; }
         .badge-cross { background-color: #854d0e; color: #fef08a; }
+
+        /* 天気カード横並びスタイル */
+        .weather-label-group {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 2px;
+        }
+
+        .weather-slash {
+            font-size: 0.6rem;
+            color: var(--text-secondary);
+        }
+
+        .weather-inline-text {
+            margin-top: 0 !important;
+        }
 
         /* ヒント・表示切り替え */
         .scroll-hint {
@@ -104,7 +121,7 @@
             border: 1px solid var(--border-color);
             border-radius: 12px;
             position: relative;
-            overflow: hidden; /* 右・下の溢れ（スライダー）を完全防止 */
+            overflow: hidden;
             padding: 10px 0 6px 0;
         }
 
@@ -138,7 +155,7 @@
 
         .chart-scroll-wrapper {
             overflow-x: auto;
-            overflow-y: hidden; /* 縦スライダーを防止 */
+            overflow-y: hidden;
             -webkit-overflow-scrolling: touch;
             position: relative;
         }
@@ -168,7 +185,6 @@
             flex-direction: column;
         }
 
-        /* 左側凡例ラベル表示エリア */
         .axis-timeline-labels {
             height: 65px;
             margin-top: 6px;
@@ -276,30 +292,6 @@
             font-weight: 600;
             z-index: 20;
         }
-        /* 1行目を横並び・中央揃えにする設定 */
-.weather-label-group {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 2px; /* 要素同士の間隔 */
-}
-
-/* スラッシュの装飾 */
-.weather-slash {
-    font-size: 0.6rem;
-    color: var(--text-secondary);
-}
-
-/* 横並び時のテキスト余白調整 */
-.weather-inline-text {
-    margin-top: 0 !important;
-}
-
-/* 天気マークのサイズと余白調整 */
-.metric-value.weather {
-    font-size: 1.8rem;
-    margin-top: 2px;
-}
     </style>
 </head>
 <body>
@@ -327,15 +319,13 @@
             <div id="windTypeBadge" class="wind-badge">--</div>
         </div>
         <div class="metric-card">
-    <!-- 1行目: 天気 / 晴れ（横並び） -->
-    <div class="weather-label-group">
-        <span class="metric-label">天気</span>
-        <span class="weather-slash">/</span>
-        <span class="metric-sub weather-inline-text" id="weatherText">--</span>
-    </div>
-    <!-- 2行目: 天気マーク -->
-    <div class="metric-value weather" id="currentWeather">--</div>
-</div>
+            <div class="weather-label-group">
+                <span class="metric-label">天気</span>
+                <span class="weather-slash">/</span>
+                <span class="metric-sub weather-inline-text" id="weatherText">--</span>
+            </div>
+            <div class="metric-value weather" id="currentWeather">--</div>
+        </div>
     </div>
 
     <div class="scroll-hint">
@@ -457,47 +447,42 @@
         }
 
         // 風種別・コンディション判定ヘルパー
-function getWindType(deg, speed) {
-    if (deg == null || speed == null) return { text: '--', class: '' };
-    
-    const s = Number(speed); // 風速(m/s)
+        function getWindType(deg, speed) {
+            if (deg == null || speed == null || speed === '--') return { text: '--', class: '' };
+            
+            const s = Number(speed);
 
-    // 1. 無風〜極弱風（風向問わずクリーン）
-    if (s < 2.5) {
-        return { text: '無風クリーン', class: 'badge-offshore' };
-    }
+            if (s < 2.5) {
+                return { text: '無風クリーン', class: 'badge-offshore' };
+            }
 
-    // 風向の判定（北〜東北東: オフショア / 南南東〜西南西: オンショア）
-    const isOffshore = (deg >= 337.5 || deg <= 67.5);
-    const isOnshore = (deg >= 157.5 && deg <= 247.5);
+            const isOffshore = (deg >= 337.5 || deg <= 67.5);
+            const isOnshore = (deg >= 157.5 && deg <= 247.5);
 
-    // 2. オフショアの場合
-    if (isOffshore) {
-        if (s <= 5.5) {
-            return { text: 'オフショア 面良し', class: 'badge-offshore' };
-        } else if (s <= 8.5) {
-            return { text: '強オフ 面煽られ', class: 'badge-cross' }; // 黄色系バッジ
-        } else {
-            return { text: '抑圧強オフ 難あり', class: 'badge-onshore' }; // 赤系バッジ
+            if (isOffshore) {
+                if (s <= 5.5) {
+                    return { text: 'オフショア 面良し', class: 'badge-offshore' };
+                } else if (s <= 8.5) {
+                    return { text: '強オフ 面煽られ', class: 'badge-cross' };
+                } else {
+                    return { text: '抑圧強オフ 難あり', class: 'badge-onshore' };
+                }
+            }
+
+            if (isOnshore) {
+                if (s <= 4.0) {
+                    return { text: '弱オン ざわつき', class: 'badge-cross' };
+                } else {
+                    return { text: 'オンショア 面荒れ', class: 'badge-onshore' };
+                }
+            }
+
+            if (s <= 5.0) {
+                return { text: 'クロス風 影響小', class: 'badge-cross' };
+            } else {
+                return { text: 'クロス風 面影響あり', class: 'badge-onshore' };
+            }
         }
-    }
-
-    // 3. オンショアの場合
-    if (isOnshore) {
-        if (s <= 4.0) {
-            return { text: '弱オン ざわつき', class: 'badge-cross' };
-        } else {
-            return { text: 'オンショア 面荒れ', class: 'badge-onshore' };
-        }
-    }
-
-    // 4. クロス（横風）の場合
-    if (s <= 5.0) {
-        return { text: 'クロス風 影響小', class: 'badge-cross' };
-    } else {
-        return { text: 'クロス風 面影響あり', class: 'badge-onshore' };
-    }
-}
 
         // APIデータ取得
         async function fetchData() {
@@ -524,7 +509,6 @@ function getWindType(deg, speed) {
                     weatherCodes: dataWeather.hourly.weather_code || []
                 };
 
-                // 現在時刻に最も近いインデックスを検索
                 const now = new Date();
                 let minDiff = Infinity;
                 globalData.times.forEach((t, i) => {
@@ -721,40 +705,37 @@ function getWindType(deg, speed) {
                         }
                     },
                     plugins: {
-    legend: { display: false },
-    targetIndex: selectedIndex,
-    
-    // ↓ ここから追加
-    tooltip: {
-        filter: function(tooltipItem) {
-            return tooltipItem.datasetIndex === 0; // 波高（棒グラフ）のみツールチップを表示
-        },
-        callbacks: {
-            title: function(tooltipItems) {
-                if (!tooltipItems.length) return '';
-                const index = tooltipItems[0].dataIndex;
-                const dateStr = rawTimes[index];
-                
-                if (!dateStr) return '';
+                        legend: { display: false },
+                        targetIndex: selectedIndex,
+                        tooltip: {
+                            filter: function(tooltipItem) {
+                                return tooltipItem.datasetIndex === 0;
+                            },
+                            callbacks: {
+                                title: function(tooltipItems) {
+                                    if (!tooltipItems.length) return '';
+                                    const index = tooltipItems[0].dataIndex;
+                                    const dateStr = rawTimes[index];
+                                    
+                                    if (!dateStr) return '';
 
-                const d = new Date(dateStr);
-                const month = d.getMonth() + 1;
-                const date = d.getDate();
-                const hours = d.getHours().toString().padStart(2, '0');
-                const days = ['日', '月', '火', '水', '木', '金', '土'];
-                const dayName = days[d.getDay()];
+                                    const d = new Date(dateStr);
+                                    const month = d.getMonth() + 1;
+                                    const date = d.getDate();
+                                    const hours = d.getHours().toString().padStart(2, '0');
+                                    const days = ['日', '月', '火', '水', '木', '金', '土'];
+                                    const dayName = days[d.getDay()];
 
-                return `${month}/${date}(${dayName}) ${hours}:00`;
-            },
-            label: function(context) {
-                const val = context.parsed.y;
-                if (val == null) return '';
-                return `波高: ${Number(val).toFixed(2)}m`;
-            }
-        }
-    }
-    // ↑ ここまで追加
-},
+                                    return `${month}/${date}(${dayName}) ${hours}:00`;
+                                },
+                                label: function(context) {
+                                    const val = context.parsed.y;
+                                    if (val == null) return '';
+                                    return `波高: ${Number(val).toFixed(2)}m`;
+                                }
+                            }
+                        }
+                    },
                     scales: {
                         x: {
                             grid: { color: 'rgba(51, 65, 85, 0.5)' },
