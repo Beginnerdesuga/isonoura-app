@@ -58,11 +58,13 @@
             border-radius: 8px;
             padding: 8px 2px;
             text-align: center;
+            display: flex;
+            flex-direction: column;
         }
 
         .metric-label { font-size: 0.65rem; color: var(--text-secondary); }
         .metric-value { font-size: 0.95rem; font-weight: 700; margin-top: 2px; }
-        
+
         /* ★カード下部テキスト：サイズ拡大・太字化・文字間隔最適化 */
         .metric-sub {
             font-size: 0.85rem;
@@ -76,7 +78,17 @@
         .metric-value.wave { color: var(--accent-wave); }
         .metric-value.tide { color: var(--accent-tide); }
         .metric-value.wind { color: var(--accent-wind); }
-        .metric-value.weather { color: var(--accent-weather); font-size: 1.3rem; }
+
+        /* 天気カード：アイコンを主役にするため大きく表示し、テキスト行は廃止 */
+        .metric-card.weather-card {
+            justify-content: center;
+        }
+        .metric-value.weather {
+            color: var(--accent-weather);
+            font-size: 2rem;
+            line-height: 1.1;
+            margin-top: 6px;
+        }
 
         .wind-badge {
             display: inline-block;
@@ -145,6 +157,27 @@
         .legend-wave .legend-color-box { background-color: var(--accent-wave); }
         .legend-tide { color: var(--accent-tide); }
         .legend-tide .legend-color-box { background-color: var(--accent-tide); }
+
+        /* 昼夜の凡例（ミニレジェンド） */
+        .legend-daynight {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.65rem;
+            color: var(--text-secondary);
+        }
+        .legend-daynight span {
+            display: flex;
+            align-items: center;
+            gap: 3px;
+        }
+        .daynight-swatch {
+            width: 10px;
+            height: 10px;
+            border-radius: 2px;
+        }
+        .swatch-day { background-color: rgba(250, 204, 21, 0.35); }
+        .swatch-night { background-color: rgba(15, 23, 42, 0.75); border: 1px solid #334155; }
 
         .chart-scroll-wrapper {
             overflow-x: auto;
@@ -303,7 +336,7 @@
             <div class="metric-sub" id="wavePeriodDir">⏱-- / --</div>
         </div>
         <div class="metric-card">
-            <div class="metric-label">潮位</div>
+            <div class="metric-label" id="tideLabel">潮位</div>
             <div class="metric-value tide" id="currentTide">--</div>
             <div class="metric-sub" id="tideExtreme">満-- 干--</div>
         </div>
@@ -312,10 +345,9 @@
             <div class="metric-value wind" id="currentWind">--</div>
             <div id="windTypeBadge" class="wind-badge">--</div>
         </div>
-        <div class="metric-card">
-            <div class="metric-label">天気</div>
+        <div class="metric-card weather-card">
+            <div class="metric-label" id="weatherLabel">天気</div>
             <div class="metric-value weather" id="currentWeather">--</div>
-            <div class="metric-sub" id="weatherText">--</div>
         </div>
     </div>
 
@@ -371,6 +403,43 @@
         let globalData = null;
         let selectedIndex = 0;
         let nowIndex = 0;
+
+        // 昼夜の境界（固定：5時〜18時を昼間とする）
+        const DAY_START_HOUR = 5;
+        const DAY_END_HOUR = 18;
+
+        function isDaytime(hour) {
+            return hour >= DAY_START_HOUR && hour <= DAY_END_HOUR;
+        }
+
+        // Chart.jsプラグイン：グラフ背景に昼夜の帯を描画
+        const dayNightBgPlugin = {
+            id: 'dayNightBg',
+            beforeDatasetsDraw: (chart) => {
+                if (chart.canvas.id !== 'marineChart' || !globalData || !globalData.times.length) return;
+
+                const { ctx, chartArea: { top, bottom }, scales: { x } } = chart;
+                const times = globalData.times;
+                ctx.save();
+
+                for (let i = 0; i < times.length; i++) {
+                    const hour = new Date(times[i]).getHours();
+                    const day = isDaytime(hour);
+
+                    const xCenter = x.getPixelForValue(i);
+                    const half = (x.getPixelForValue(1) - x.getPixelForValue(0)) / 2 || 8;
+                    const xStart = xCenter - half;
+                    const xEnd = xCenter + half;
+
+                    ctx.fillStyle = day ? 'rgba(250, 204, 21, 0.05)' : 'rgba(15, 23, 42, 0.45)';
+                    ctx.fillRect(xStart, top, xEnd - xStart, bottom - top);
+                }
+
+                ctx.restore();
+            }
+        };
+
+        Chart.register(dayNightBgPlugin);
 
         // Chart.js プラグイン：選択線および下部タイムラインの同期
         const timeLineLinesPlugin = {
@@ -434,7 +503,7 @@
 
         function getWindType(deg, speed) {
             if (deg == null || speed == null) return { text: '--', class: '' };
-            
+
             const s = Number(speed);
 
             if (s < 2.5) {
@@ -469,6 +538,26 @@
             }
         }
 
+        // 月齢から潮回り（大潮・中潮・小潮・長潮・若潮）を簡易推定する関数
+        // 基準新月: 2000-01-06 18:14 UTC、朔望月: 29.53058867日
+        function getTidePhaseInfo(date) {
+            const knownNewMoon = Date.UTC(2000, 0, 6, 18, 14, 0);
+            const synodicMonth = 29.53058867;
+            const diffDays = (date.getTime() - knownNewMoon) / 86400000;
+            let age = diffDays % synodicMonth;
+            if (age < 0) age += synodicMonth;
+
+            // 新月・満月付近の位置（0〜14.76を1周期として扱う）
+            const halfCycle = synodicMonth / 2;
+            const pos = age % halfCycle; // 0=新月or満月に近い
+
+            if (pos <= 1.5 || pos >= halfCycle - 1.5) return '大潮';
+            if (pos <= 3.5 || pos >= halfCycle - 3.5) return '中潮';
+            if (pos <= 5.5 || pos >= halfCycle - 5.5) return '小潮';
+            if (pos <= 6.5 || pos >= halfCycle - 6.5) return '長潮';
+            return '若潮';
+        }
+
         // 直近の満潮・干潮時刻を求める関数
         function getTideExtremes(index) {
             if (!globalData || !globalData.seaLevels || globalData.seaLevels.length === 0) {
@@ -477,7 +566,7 @@
 
             const start = Math.max(0, index - 12);
             const end = Math.min(globalData.seaLevels.length - 1, index + 12);
-            
+
             let highTime = '--';
             let lowTime = '--';
             let maxVal = -Infinity;
@@ -575,7 +664,7 @@
             // 波の周期 & 波向の情報生成
             const periodVal = globalData.wavePeriods[index] != null ? Math.round(globalData.wavePeriods[index]) : '--';
             const waveDirInfo = getDirectionInfo(globalData.waveDirections[index]);
-            
+
             // 下部テキスト設定（案1表記）
             document.getElementById('wavePeriodDir').textContent = `⏱${periodVal}s / ${waveDirInfo.text}`;
             document.getElementById('tideExtreme').textContent = getTideExtremes(index);
@@ -584,12 +673,17 @@
             document.getElementById('currentTide').textContent = curTide !== '--' ? `${curTide}m` : '--';
             document.getElementById('currentWind').textContent = curWindSpeed !== '--' ? `${curWindSpeed}m/s` : '--';
 
+            // 潮位カードのラベルに潮回り（大潮・中潮など）を統合表示
+            const tidePhase = getTidePhaseInfo(t);
+            document.getElementById('tideLabel').textContent = `潮位/${tidePhase}`;
+
             const badgeEl = document.getElementById('windTypeBadge');
             badgeEl.textContent = windType.text;
             badgeEl.className = `wind-badge ${windType.class}`;
 
+            // 天気カードのラベルに天気テキストを統合し、アイコンのみ大きく表示
+            document.getElementById('weatherLabel').textContent = `天気/${weatherInfo.text}`;
             document.getElementById('currentWeather').textContent = weatherInfo.icon;
-            document.getElementById('weatherText').textContent = weatherInfo.text;
         }
 
         function resetToNow() {
@@ -752,7 +846,7 @@
                         x: {
                             grid: { color: 'rgba(51, 65, 85, 0.5)' },
                             ticks: {
-                                color: (ctx) => (new Date(rawTimes[ctx.index]).getHours() % 3 === 0) ? '#f8fafc' : '#64748b',
+                                color: (ctx) => isDaytime(new Date(rawTimes[ctx.index]).getHours()) ? '#f8fafc' : '#64748b',
                                 font: (ctx) => ({
                                     size: (new Date(rawTimes[ctx.index]).getHours() % 3 === 0) ? 11 : 9,
                                     weight: (new Date(rawTimes[ctx.index]).getHours() % 3 === 0) ? 'bold' : 'normal'
