@@ -108,6 +108,9 @@
             border-radius: 4px;
             margin-top: 2px;
             font-weight: 400;
+            white-space: nowrap;
+            max-width: 100%;
+            transform-origin: center;
         }
         .badge-offshore { background-color: #166534; color: #4ade80; }
         .badge-onshore { background-color: #991b1b; color: #fca5a5; }
@@ -317,6 +320,7 @@
         <h1>🌊 磯の浦コンディション</h1>
         <p class="subtitle">Open-Meteo API リアルタイム連携</p>
         <p class="location-note">※ 観測地点: 北緯34.25, 東経135.08（磯の浦沖約1km）</p>
+        <p class="location-note">※ 波向・風向の矢印は磯の浦の沖向き（南南西・200°）を上とした相対角度で表示</p>
     </header>
 
     <div class="metrics-grid">
@@ -682,6 +686,7 @@
             const badgeEl = document.getElementById('windTypeBadge');
             badgeEl.textContent = windType.text;
             badgeEl.className = `wind-badge ${windType.class}`;
+            fitTextToWidth(badgeEl);
 
             // 天気カード：テキストとアイコンを分けて表示
             document.getElementById('weatherText').textContent = weatherInfo.text;
@@ -697,6 +702,20 @@
             if (windArrow) {
                 const windAngle = toShoreRelativeAngle(globalData.windDirections[index]);
                 windArrow.setAttribute('transform', `rotate(${windAngle} 15 15)`);
+            }
+        }
+
+        // バッジの文字がカード幅に収まらない場合、1行のまま縮小してフィットさせる
+        function fitTextToWidth(el) {
+            el.style.transform = 'scale(1)';
+            const parent = el.parentElement;
+            if (!parent) return;
+            const style = getComputedStyle(parent);
+            const paddingX = parseFloat(style.paddingLeft) + parseFloat(style.paddingRight);
+            const availableWidth = parent.clientWidth - paddingX;
+            const textWidth = el.scrollWidth;
+            if (availableWidth > 0 && textWidth > availableWidth) {
+                el.style.transform = `scale(${availableWidth / textWidth})`;
             }
         }
 
@@ -896,17 +915,22 @@
 
             waveDirections.forEach((wDeg, i) => {
                 const waveInfo = getDirectionInfo(wDeg);
-                const windInfo = getDirectionInfo(windDirections ? windDirections[i] : null);
+                const windDeg = windDirections ? windDirections[i] : null;
+                const windInfo = getDirectionInfo(windDeg);
                 const wSpeed = windSpeeds && windSpeeds[i] != null ? windSpeeds[i] : '--';
+
+                // 磯の浦の沖向き（南南西・200°）を上とした相対角度で矢印を回転
+                const waveAngle = toShoreRelativeAngle(wDeg);
+                const windAngle = toShoreRelativeAngle(windDeg);
 
                 const col = document.createElement('div');
                 col.className = 'timeline-col';
                 col.onclick = () => selectIndex(i);
 
                 col.innerHTML = `
-                    <div class="wave-dir-arrow" title="波向: ${waveInfo.text}">${waveInfo.arrow}</div>
+                    <div class="wave-dir-arrow" title="波向: ${waveInfo.text}"><span style="display:inline-block; transform: rotate(${waveAngle}deg);">↑</span></div>
                     <div class="wind-val">${wSpeed}</div>
-                    <div class="wind-arrow" title="風向: ${windInfo.text}">${windInfo.arrow}</div>
+                    <div class="wind-arrow" title="風向: ${windInfo.text}"><span style="display:inline-block; transform: rotate(${windAngle}deg);">↑</span></div>
                 `;
                 fragment.appendChild(col);
             });
@@ -915,6 +939,11 @@
         }
 
         window.onload = fetchData;
+
+        window.addEventListener('resize', () => {
+            const badgeEl = document.getElementById('windTypeBadge');
+            if (badgeEl) fitTextToWidth(badgeEl);
+        });
     </script>
 </body>
 </html>
