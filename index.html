@@ -66,7 +66,7 @@
         .metric-label { font-size: 0.7rem; color: var(--text-secondary); }
         .metric-value { font-size: 0.95rem; font-weight: 700; margin-top: 2px; }
         
-        /* サブテキスト領域：はみ出し・改行防止を追加 */
+        /* サブテキスト領域：フォントサイズ拡大＋折り返し防止 */
         .metric-sub {
             font-size: 0.75rem;
             color: var(--text-secondary);
@@ -88,11 +88,11 @@
 
         .wind-badge {
             display: inline-block;
-            font-size: 0.6rem;
+            font-size: 0.55rem;
             padding: 1px 3px;
             border-radius: 4px;
             margin-top: 2px;
-            font-weight: normal;
+            font-weight: 600;
         }
         .badge-offshore { background-color: #166534; color: #4ade80; }
         .badge-onshore { background-color: #991b1b; color: #fca5a5; }
@@ -385,7 +385,54 @@
         let selectedIndex = 0;
         let nowIndex = 0;
 
-        // Chart.js プラグイン：選択線および下部タイムラインの同期
+        // プラグイン1：時間帯グラデーション背景描画処理
+        const dayNightGradientPlugin = {
+            id: 'dayNightGradient',
+            beforeDraw: (chart) => {
+                const { ctx, chartArea } = chart;
+                const meta = chart.getDatasetMeta(0);
+                if (!meta || !meta.data || meta.data.length === 0) return;
+
+                ctx.save();
+
+                // 時間帯に応じた背景色指定（日中 #2a59a6 / 朝夕 #1e3f74 / 夜 #162030）
+                const getTimeColor = (hour) => {
+                    if (hour >= 7 && hour <= 16) {
+                        return '#2a59a6'; // 日中
+                    } else if ((hour >= 4 && hour <= 6) || (hour >= 17 && hour <= 18)) {
+                        return '#1e3f74'; // 日の出・日の入り
+                    } else {
+                        return '#162030'; // 夜
+                    }
+                };
+
+                const top = chartArea.top;
+                const height = chartArea.bottom - chartArea.top;
+
+                // 時間軸に沿って背景をなめらかにグラデーション描画
+                for (let i = 0; i < meta.data.length - 1; i++) {
+                    const barCurrent = meta.data[i];
+                    const barNext = meta.data[i + 1];
+
+                    const hourCurrent = new Date(globalData.times[i]).getHours();
+                    const hourNext = new Date(globalData.times[i + 1]).getHours();
+
+                    const x1 = barCurrent.x;
+                    const x2 = barNext.x;
+
+                    const gradient = ctx.createLinearGradient(x1, 0, x2, 0);
+                    gradient.addColorStop(0, getTimeColor(hourCurrent));
+                    gradient.addColorStop(1, getTimeColor(hourNext));
+
+                    ctx.fillStyle = gradient;
+                    ctx.fillRect(x1, top, x2 - x1, height);
+                }
+
+                ctx.restore();
+            }
+        };
+
+        // プラグイン2：選択線・リアルタイム線描画
         const timeLineLinesPlugin = {
             id: 'timeLineLines',
             afterDraw: (chart) => {
@@ -411,23 +458,19 @@
                     }
                 };
 
-                // 現在時刻の赤破線
                 drawLine(nowIndex, '#ef4444');
 
-                // 選択時刻の青破線
                 const targetIndex = chart.config.options.plugins.targetIndex;
                 if (targetIndex !== undefined && targetIndex !== nowIndex) {
                     drawLine(targetIndex, '#38bdf8');
                 }
 
-                // タイムラインのX座標同期
                 syncTimelinePositions(chart);
             }
         };
 
-        Chart.register(timeLineLinesPlugin);
+        Chart.register(dayNightGradientPlugin, timeLineLinesPlugin);
 
-        // 天気コード変換ヘルパー
         function getWeatherInfo(code) {
             if (code == null) return { icon: '--', text: '--' };
             if (code === 0) return { icon: '☀️', text: '快晴' };
@@ -441,7 +484,6 @@
             return { icon: '☁️', text: '不明' };
         }
 
-        // 方位変換ヘルパー
         function getDirectionInfo(deg) {
             if (deg == null) return { text: '--', arrow: '', short: '--' };
             const directions = ['北', '北北東', '北東', '東北東', '東', '東南東', '南東', '南南東', '南', '南南西', '南西', '西南西', '西', '西北西', '北西', '北北西'];
@@ -451,7 +493,6 @@
             return { text: directions[idx], arrow: arrows[idx], short: shortDirections[idx] };
         }
 
-        // 風種別判定ヘルパー
         function getWindType(deg, speed) {
             if (deg == null || speed == null || speed === '--') return { text: '--', class: '' };
             
@@ -489,7 +530,6 @@
             }
         }
 
-        // 当日の満潮・干潮時刻算出処理
         function getHighLowTideTimes(targetIndex) {
             if (!globalData || !globalData.seaLevels || !globalData.times[targetIndex]) {
                 return '満--:-- 干--:--';
@@ -536,7 +576,6 @@
             return `満${formatHM(highTime)} 干${formatHM(lowTime)}`;
         }
 
-        // APIデータ取得
         async function fetchData() {
             const loadingEl = document.getElementById('loading');
             loadingEl.style.display = 'flex';
@@ -583,7 +622,6 @@
             }
         }
 
-        // 上部カード表示更新
         function updateMetricsCards(index) {
             if (!globalData || !globalData.times || !globalData.times[index]) return;
 
@@ -607,12 +645,10 @@
             const windType = getWindType(globalData.windDirections[index], curWindSpeed);
             const weatherInfo = getWeatherInfo(globalData.weatherCodes[index]);
 
-            // 波高サブテキスト（周期 + 日本語表記の波向）
             const periodVal = globalData.wavePeriods[index] != null ? `${Number(globalData.wavePeriods[index]).toFixed(1)}s` : '--s';
             const waveDirInfo = getDirectionInfo(globalData.waveDirections[index]);
             const waveSubText = `T: ${periodVal}/${waveDirInfo.text}`;
 
-            // 潮位サブテキスト（当日の満潮・干潮時刻）
             const tideSubText = getHighLowTideTimes(index);
 
             document.getElementById('currentWave').textContent = curWave !== '--' ? `${curWave}m` : '--';
@@ -662,7 +698,6 @@
             renderChart(labels, globalData.times, globalData.waveHeights, globalData.seaLevels);
         }
 
-        // タイムライン位置同期
         function syncTimelinePositions(chart) {
             const meta = chart.getDatasetMeta(0);
             if (!meta || !meta.data) return;
@@ -689,7 +724,6 @@
             const maxWaveVal = validWaveHeights.length > 0 ? Math.max(...validWaveHeights) : 0;
             const targetMax = maxWaveVal > 2.0 ? Math.ceil(maxWaveVal * 1.1 * 10) / 10 : 2.0;
 
-            // 左軸固定キャンバス
             axisChart = new Chart(axisCtx, {
                 type: 'bar',
                 data: {
@@ -716,7 +750,6 @@
                 }
             });
 
-            // メインキャンバス
             myChart = new Chart(ctx, {
                 type: 'bar',
                 data: {
@@ -821,7 +854,6 @@
             });
         }
 
-        // タイムライン表示生成
         function renderTimelineData(waveDirections, windSpeeds, windDirections) {
             const container = document.getElementById('timelineWrapper');
             container.innerHTML = '';
