@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>磯の浦 波・潮・風・天気モニター</title>
+    <title>磯ノ浦 波・潮・風・天気モニター</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
@@ -60,9 +60,19 @@
             text-align: center;
         }
 
-        .metric-label { font-size: 0.6rem; color: var(--text-secondary); }
+        .metric-label { font-size: 0.65rem; color: var(--text-secondary); }
         .metric-value { font-size: 0.95rem; font-weight: 700; margin-top: 2px; }
-        .metric-sub { font-size: 0.6rem; color: var(--text-secondary); margin-top: 1px; }
+        
+        /* ★カード下部テキスト：サイズ拡大・太字化・文字間隔最適化 */
+        .metric-sub {
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: #e2e8f0;
+            margin-top: 3px;
+            letter-spacing: -0.5px;
+            white-space: nowrap;
+        }
+
         .metric-value.wave { color: var(--accent-wave); }
         .metric-value.tide { color: var(--accent-tide); }
         .metric-value.wind { color: var(--accent-wind); }
@@ -70,7 +80,7 @@
 
         .wind-badge {
             display: inline-block;
-            font-size: 0.55rem;
+            font-size: 0.6rem;
             padding: 1px 3px;
             border-radius: 4px;
             margin-top: 2px;
@@ -281,7 +291,7 @@
 <body>
 
     <header>
-        <h1>🌊 磯の浦コンディション</h1>
+        <h1>🌊 磯ノ浦コンディション</h1>
         <p class="subtitle">Open-Meteo API リアルタイム連携</p>
         <p class="location-note">※ 観測地点: 北緯34.25, 東経135.08（磯ノ浦沖約1km）</p>
     </header>
@@ -290,12 +300,12 @@
         <div class="metric-card">
             <div class="metric-label">波高</div>
             <div class="metric-value wave" id="currentWave">--</div>
-            <div class="metric-sub" id="maxWave">本日最大 --</div>
+            <div class="metric-sub" id="wavePeriodDir">⏱-- / --</div>
         </div>
         <div class="metric-card">
             <div class="metric-label">潮位</div>
             <div class="metric-value tide" id="currentTide">--</div>
-            <div class="metric-sub" id="tideForecast">--</div>
+            <div class="metric-sub" id="tideExtreme">満-- 干--</div>
         </div>
         <div class="metric-card">
             <div class="metric-label">風速・風向</div>
@@ -388,23 +398,19 @@
                     }
                 };
 
-                // 現在時刻の赤破線
                 drawLine(nowIndex, '#ef4444');
 
-                // 選択時刻の青破線
                 const targetIndex = chart.config.options.plugins.targetIndex;
                 if (targetIndex !== undefined && targetIndex !== nowIndex) {
                     drawLine(targetIndex, '#38bdf8');
                 }
 
-                // タイムラインのX座標完全同期
                 syncTimelinePositions(chart);
             }
         };
 
         Chart.register(timeLineLinesPlugin);
 
-        // 天気コード変換ヘルパー
         function getWeatherInfo(code) {
             if (code == null) return { icon: '--', text: '--' };
             if (code === 0) return { icon: '☀️', text: '快晴' };
@@ -418,7 +424,6 @@
             return { icon: '☁️', text: '不明' };
         }
 
-        // 方位・矢印変換ヘルパー
         function getDirectionInfo(deg) {
             if (deg == null) return { text: '--', arrow: '' };
             const directions = ['北', '北北東', '北東', '東北東', '東', '東南東', '南東', '南南東', '南', '南南西', '南西', '西南西', '西', '西北西', '北西', '北北西'];
@@ -427,13 +432,11 @@
             return { text: directions[idx], arrow: arrows[idx] };
         }
 
-        // 風種別・コンディション判定ヘルパー（風速加味版）
         function getWindType(deg, speed) {
             if (deg == null || speed == null) return { text: '--', class: '' };
             
             const s = Number(speed);
 
-            // 1. 無風〜極弱風
             if (s < 2.5) {
                 return { text: '無風クリーン', class: 'badge-offshore' };
             }
@@ -441,7 +444,6 @@
             const isOffshore = (deg >= 337.5 || deg <= 67.5);
             const isOnshore = (deg >= 157.5 && deg <= 247.5);
 
-            // 2. オフショアの場合
             if (isOffshore) {
                 if (s <= 5.5) {
                     return { text: 'オフショア 面良し', class: 'badge-offshore' };
@@ -452,7 +454,6 @@
                 }
             }
 
-            // 3. オンショアの場合
             if (isOnshore) {
                 if (s <= 4.0) {
                     return { text: '弱オン ざわつき', class: 'badge-cross' };
@@ -461,7 +462,6 @@
                 }
             }
 
-            // 4. クロス（横風）の場合
             if (s <= 5.0) {
                 return { text: 'クロス風 影響小', class: 'badge-cross' };
             } else {
@@ -469,12 +469,45 @@
             }
         }
 
-        // APIデータ取得
+        // 直近の満潮・干潮時刻を求める関数
+        function getTideExtremes(index) {
+            if (!globalData || !globalData.seaLevels || globalData.seaLevels.length === 0) {
+                return '満-- 干--';
+            }
+
+            const start = Math.max(0, index - 12);
+            const end = Math.min(globalData.seaLevels.length - 1, index + 12);
+            
+            let highTime = '--';
+            let lowTime = '--';
+            let maxVal = -Infinity;
+            let minVal = Infinity;
+
+            for (let i = start; i <= end; i++) {
+                const val = globalData.seaLevels[i];
+                if (val != null) {
+                    if (val > maxVal) {
+                        maxVal = val;
+                        const d = new Date(globalData.times[i]);
+                        highTime = `${d.getHours()}:${d.getMinutes().toString().padStart(2, '0')}`;
+                    }
+                    if (val < minVal) {
+                        minVal = val;
+                        const d = new Date(globalData.times[i]);
+                        lowTime = `${d.getHours()}:${d.getMinutes().toString().padStart(2, '0')}`;
+                    }
+                }
+            }
+
+            return `満${highTime} 干${lowTime}`;
+        }
+
         async function fetchData() {
             const loadingEl = document.getElementById('loading');
             loadingEl.style.display = 'flex';
 
-            const urlMarine = 'https://marine-api.open-meteo.com/v1/marine?latitude=34.25&longitude=135.08&hourly=wave_height,wave_direction,sea_level_height_msl&timezone=Asia%2FTokyo&forecast_days=3';
+            // wave_period（波の周期）を追加で取得
+            const urlMarine = 'https://marine-api.open-meteo.com/v1/marine?latitude=34.25&longitude=135.08&hourly=wave_height,wave_direction,wave_period,sea_level_height_msl&timezone=Asia%2FTokyo&forecast_days=3';
             const urlWeather = 'https://api.open-meteo.com/v1/forecast?latitude=34.25&longitude=135.08&hourly=wind_speed_10m,wind_direction_10m,weather_code&timezone=Asia%2FTokyo&forecast_days=3';
 
             try {
@@ -488,6 +521,7 @@
                     times: dataMarine.hourly.time || [],
                     waveHeights: dataMarine.hourly.wave_height || [],
                     waveDirections: dataMarine.hourly.wave_direction || [],
+                    wavePeriods: dataMarine.hourly.wave_period || [],
                     seaLevels: dataMarine.hourly.sea_level_height_msl || [],
                     windSpeeds: dataWeather.hourly.wind_speed_10m ? dataWeather.hourly.wind_speed_10m.map(v => v != null ? (v / 3.6).toFixed(1) : null) : [],
                     windDirections: dataWeather.hourly.wind_direction_10m || [],
@@ -515,7 +549,6 @@
             }
         }
 
-        // 上部カードの更新
         function updateMetricsCards(index) {
             if (!globalData || !globalData.times || !globalData.times[index]) return;
 
@@ -539,18 +572,16 @@
             const windType = getWindType(globalData.windDirections[index], curWindSpeed);
             const weatherInfo = getWeatherInfo(globalData.weatherCodes[index]);
 
-            const todayWaveHeights = globalData.waveHeights.slice(0, 24).filter(v => v != null);
-            const maxWaveVal = todayWaveHeights.length > 0 ? Math.max(...todayWaveHeights).toFixed(2) : '--';
-
-            let tideNotice = curTide !== '--' ? `高度 ${curTide}m` : '--';
-            if (index + 1 < globalData.seaLevels.length && globalData.seaLevels[index + 1] != null && globalData.seaLevels[index] != null) {
-                tideNotice = globalData.seaLevels[index + 1] > globalData.seaLevels[index] ? '上げ潮傾向' : '下げ潮傾向';
-            }
+            // 波の周期 & 波向の情報生成
+            const periodVal = globalData.wavePeriods[index] != null ? Math.round(globalData.wavePeriods[index]) : '--';
+            const waveDirInfo = getDirectionInfo(globalData.waveDirections[index]);
+            
+            // 下部テキスト設定（案1表記）
+            document.getElementById('wavePeriodDir').textContent = `⏱${periodVal}s / ${waveDirInfo.text}`;
+            document.getElementById('tideExtreme').textContent = getTideExtremes(index);
 
             document.getElementById('currentWave').textContent = curWave !== '--' ? `${curWave}m` : '--';
-            document.getElementById('maxWave').textContent = `本日最大 ${maxWaveVal}m`;
             document.getElementById('currentTide').textContent = curTide !== '--' ? `${curTide}m` : '--';
-            document.getElementById('tideForecast').textContent = tideNotice;
             document.getElementById('currentWind').textContent = curWindSpeed !== '--' ? `${curWindSpeed}m/s` : '--';
 
             const badgeEl = document.getElementById('windTypeBadge');
@@ -592,7 +623,6 @@
             renderChart(labels, globalData.times, globalData.waveHeights, globalData.seaLevels);
         }
 
-        // タイムライン位置の動的同期
         function syncTimelinePositions(chart) {
             const meta = chart.getDatasetMeta(0);
             if (!meta || !meta.data) return;
@@ -619,7 +649,6 @@
             const maxWaveVal = validWaveHeights.length > 0 ? Math.max(...validWaveHeights) : 0;
             const targetMax = maxWaveVal > 2.0 ? Math.ceil(maxWaveVal * 1.1 * 10) / 10 : 2.0;
 
-            // 左軸固定キャンバス
             axisChart = new Chart(axisCtx, {
                 type: 'bar',
                 data: {
@@ -646,7 +675,6 @@
                 }
             });
 
-            // メインキャンバス
             myChart = new Chart(ctx, {
                 type: 'bar',
                 data: {
@@ -694,7 +722,7 @@
                         targetIndex: selectedIndex,
                         tooltip: {
                             filter: function(tooltipItem) {
-                                return tooltipItem.datasetIndex === 0; // 波高（棒グラフ）のみツールチップ対象
+                                return tooltipItem.datasetIndex === 0;
                             },
                             callbacks: {
                                 title: function(tooltipItems) {
@@ -750,7 +778,6 @@
             });
         }
 
-        // タイムライン表示生成
         function renderTimelineData(waveDirections, windSpeeds, windDirections) {
             const container = document.getElementById('timelineWrapper');
             container.innerHTML = '';
