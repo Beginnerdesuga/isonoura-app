@@ -58,15 +58,33 @@
             border-radius: 8px;
             padding: 8px 2px;
             text-align: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
         }
 
         .metric-label { font-size: 0.6rem; color: var(--text-secondary); }
         .metric-value { font-size: 0.95rem; font-weight: 700; margin-top: 2px; }
-        .metric-sub { font-size: 0.6rem; color: var(--text-secondary); margin-top: 1px; }
+        
+        /* サブテキスト領域：はみ出し・改行防止を追加 */
+        .metric-sub {
+            font-size: 0.6rem;
+            color: var(--text-secondary);
+            margin-top: 1px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
         .metric-value.wave { color: var(--accent-wave); }
         .metric-value.tide { color: var(--accent-tide); }
         .metric-value.wind { color: var(--accent-wind); }
-        .metric-value.weather { color: var(--accent-weather); font-size: 1.8rem; margin-top: 2px; }
+        .metric-value.weather { 
+            color: var(--accent-weather); 
+            font-size: 1.6rem; 
+            line-height: 1.1;
+            margin: 2px 0; 
+        }
 
         .wind-badge {
             display: inline-block;
@@ -80,21 +98,10 @@
         .badge-onshore { background-color: #991b1b; color: #fca5a5; }
         .badge-cross { background-color: #854d0e; color: #fef08a; }
 
-        /* 天気カード横並びスタイル */
-        .weather-label-group {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 2px;
-        }
-
-        .weather-slash {
-            font-size: 0.6rem;
+        .weather-sub-text {
+            font-size: 0.65rem;
             color: var(--text-secondary);
-        }
-
-        .weather-inline-text {
-            margin-top: 0 !important;
+            font-weight: 500;
         }
 
         /* ヒント・表示切り替え */
@@ -306,12 +313,12 @@
         <div class="metric-card">
             <div class="metric-label">波高</div>
             <div class="metric-value wave" id="currentWave">--</div>
-            <div class="metric-sub" id="maxWave">本日最大 --</div>
+            <div class="metric-sub" id="wavePeriodDir">T: --s/--</div>
         </div>
         <div class="metric-card">
             <div class="metric-label">潮位</div>
             <div class="metric-value tide" id="currentTide">--</div>
-            <div class="metric-sub" id="tideForecast">--</div>
+            <div class="metric-sub" id="tideExtremeTimes">満--:-- 干--:--</div>
         </div>
         <div class="metric-card">
             <div class="metric-label">風速・風向</div>
@@ -319,12 +326,9 @@
             <div id="windTypeBadge" class="wind-badge">--</div>
         </div>
         <div class="metric-card">
-            <div class="weather-label-group">
-                <span class="metric-label">天気</span>
-                <span class="weather-slash">/</span>
-                <span class="metric-sub weather-inline-text" id="weatherText">--</span>
-            </div>
+            <div class="metric-label">天気</div>
             <div class="metric-value weather" id="currentWeather">--</div>
+            <div class="weather-sub-text" id="weatherText">--</div>
         </div>
     </div>
 
@@ -416,7 +420,7 @@
                     drawLine(targetIndex, '#38bdf8');
                 }
 
-                // タイムラインのX座標完全同期
+                // タイムラインのX座標同期
                 syncTimelinePositions(chart);
             }
         };
@@ -437,16 +441,17 @@
             return { icon: '☁️', text: '不明' };
         }
 
-        // 方位・矢印変換ヘルパー
+        // 方位変換ヘルパー
         function getDirectionInfo(deg) {
-            if (deg == null) return { text: '--', arrow: '' };
+            if (deg == null) return { text: '--', arrow: '', short: '--' };
             const directions = ['北', '北北東', '北東', '東北東', '東', '東南東', '南東', '南南東', '南', '南南西', '南西', '西南西', '西', '西北西', '北西', '北北西'];
+            const shortDirections = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
             const arrows = ['↓', '↙', '↙', '↙', '←', '↖', '↖', '↖', '↑', '↗', '↗', '↗', '→', '↘', '↘', '↘'];
             const idx = Math.round(deg / 22.5) % 16;
-            return { text: directions[idx], arrow: arrows[idx] };
+            return { text: directions[idx], arrow: arrows[idx], short: shortDirections[idx] };
         }
 
-        // 風種別・コンディション判定ヘルパー
+        // 風種別判定ヘルパー
         function getWindType(deg, speed) {
             if (deg == null || speed == null || speed === '--') return { text: '--', class: '' };
             
@@ -484,12 +489,59 @@
             }
         }
 
+        // 当日の満潮・干潮時刻算出処理
+        function getHighLowTideTimes(targetIndex) {
+            if (!globalData || !globalData.seaLevels || !globalData.times[targetIndex]) {
+                return '満--:-- 干--:--';
+            }
+
+            const targetDateStr = globalData.times[targetIndex].substring(0, 10);
+            
+            const dayIndices = [];
+            globalData.times.forEach((t, i) => {
+                if (t.startsWith(targetDateStr)) {
+                    dayIndices.push(i);
+                }
+            });
+
+            if (dayIndices.length === 0) return '満--:-- 干--:--';
+
+            let highTime = null;
+            let lowTime = null;
+            let maxVal = -Infinity;
+            let minVal = Infinity;
+
+            for (let i of dayIndices) {
+                const val = globalData.seaLevels[i];
+                if (val != null) {
+                    if (val > maxVal) {
+                        maxVal = val;
+                        highTime = globalData.times[i];
+                    }
+                    if (val < minVal) {
+                        minVal = val;
+                        lowTime = globalData.times[i];
+                    }
+                }
+            }
+
+            const formatHM = (timeStr) => {
+                if (!timeStr) return '--:--';
+                const d = new Date(timeStr);
+                const h = d.getHours().toString().padStart(2, '0');
+                const m = d.getMinutes().toString().padStart(2, '0');
+                return `${h}:${m}`;
+            };
+
+            return `満${formatHM(highTime)} 干${formatHM(lowTime)}`;
+        }
+
         // APIデータ取得
         async function fetchData() {
             const loadingEl = document.getElementById('loading');
             loadingEl.style.display = 'flex';
 
-            const urlMarine = 'https://marine-api.open-meteo.com/v1/marine?latitude=34.25&longitude=135.08&hourly=wave_height,wave_direction,sea_level_height_msl&timezone=Asia%2FTokyo&forecast_days=3';
+            const urlMarine = 'https://marine-api.open-meteo.com/v1/marine?latitude=34.25&longitude=135.08&hourly=wave_height,wave_direction,wave_period,sea_level_height_msl&timezone=Asia%2FTokyo&forecast_days=3';
             const urlWeather = 'https://api.open-meteo.com/v1/forecast?latitude=34.25&longitude=135.08&hourly=wind_speed_10m,wind_direction_10m,weather_code&timezone=Asia%2FTokyo&forecast_days=3';
 
             try {
@@ -503,6 +555,7 @@
                     times: dataMarine.hourly.time || [],
                     waveHeights: dataMarine.hourly.wave_height || [],
                     waveDirections: dataMarine.hourly.wave_direction || [],
+                    wavePeriods: dataMarine.hourly.wave_period || [],
                     seaLevels: dataMarine.hourly.sea_level_height_msl || [],
                     windSpeeds: dataWeather.hourly.wind_speed_10m ? dataWeather.hourly.wind_speed_10m.map(v => v != null ? (v / 3.6).toFixed(1) : null) : [],
                     windDirections: dataWeather.hourly.wind_direction_10m || [],
@@ -530,7 +583,7 @@
             }
         }
 
-        // 上部カードの更新
+        // 上部カード表示更新
         function updateMetricsCards(index) {
             if (!globalData || !globalData.times || !globalData.times[index]) return;
 
@@ -554,18 +607,20 @@
             const windType = getWindType(globalData.windDirections[index], curWindSpeed);
             const weatherInfo = getWeatherInfo(globalData.weatherCodes[index]);
 
-            const todayWaveHeights = globalData.waveHeights.slice(0, 24).filter(v => v != null);
-            const maxWaveVal = todayWaveHeights.length > 0 ? Math.max(...todayWaveHeights).toFixed(2) : '--';
+            // 波高サブテキスト（周期 + 日本語表記の波向）
+            const periodVal = globalData.wavePeriods[index] != null ? `${Number(globalData.wavePeriods[index]).toFixed(1)}s` : '--s';
+            const waveDirInfo = getDirectionInfo(globalData.waveDirections[index]);
+            const waveSubText = `T: ${periodVal}/${waveDirInfo.text}`;
 
-            let tideNotice = curTide !== '--' ? `高度 ${curTide}m` : '--';
-            if (index + 1 < globalData.seaLevels.length && globalData.seaLevels[index + 1] != null && globalData.seaLevels[index] != null) {
-                tideNotice = globalData.seaLevels[index + 1] > globalData.seaLevels[index] ? '上げ潮傾向' : '下げ潮傾向';
-            }
+            // 潮位サブテキスト（当日の満潮・干潮時刻）
+            const tideSubText = getHighLowTideTimes(index);
 
             document.getElementById('currentWave').textContent = curWave !== '--' ? `${curWave}m` : '--';
-            document.getElementById('maxWave').textContent = `本日最大 ${maxWaveVal}m`;
+            document.getElementById('wavePeriodDir').textContent = waveSubText;
+
             document.getElementById('currentTide').textContent = curTide !== '--' ? `${curTide}m` : '--';
-            document.getElementById('tideForecast').textContent = tideNotice;
+            document.getElementById('tideExtremeTimes').textContent = tideSubText;
+
             document.getElementById('currentWind').textContent = curWindSpeed !== '--' ? `${curWindSpeed}m/s` : '--';
 
             const badgeEl = document.getElementById('windTypeBadge');
@@ -607,7 +662,7 @@
             renderChart(labels, globalData.times, globalData.waveHeights, globalData.seaLevels);
         }
 
-        // タイムライン位置の動的同期
+        // タイムライン位置同期
         function syncTimelinePositions(chart) {
             const meta = chart.getDatasetMeta(0);
             if (!meta || !meta.data) return;
