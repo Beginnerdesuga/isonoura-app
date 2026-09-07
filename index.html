@@ -1,888 +1,498 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>磯の浦 波・潮・風・天気モニター</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        :root {
-            --bg-color: #0f172a;
-            --card-bg: #1e293b;
-            --text-primary: #f8fafc;
-            --text-secondary: #94a3b8;
-            --accent-wave: #38bdf8;
-            --accent-tide: #fb923c;
-            --accent-wind: #4ade80;
-            --accent-weather: #facc15;
-            --border-color: #334155;
-            --axis-width: 42px;
-        }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>磯ノ浦 リアルタイム海況ダッシュボード</title>
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    /* ==========================================================================
+       1. CSS Variables & Reset
+       ========================================================================== */
+    :root {
+      /* Base Dark Theme Colors */
+      --bg-dashboard: #0b0f19;
+      --bg-card: rgba(22, 30, 46, 0.75);
+      --bg-card-hover: rgba(30, 41, 59, 0.85);
+      --border-card: rgba(255, 255, 255, 0.08);
+      
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
 
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
-        }
+      /* Time Zone Accent Colors */
+      --color-day: #f59e0b;
+      --color-day-glow: rgba(245, 158, 11, 0.15);
+      --color-night: #38bdf8;
+      --color-night-glow: rgba(56, 189, 248, 0.15);
+      --color-twilight: #f43f5e;
+      --color-twilight-glow: rgba(244, 63, 94, 0.18);
 
-        body {
-            background-color: var(--bg-color);
-            color: var(--text-primary);
-            padding: 12px;
-            max-width: 600px;
-            margin: 0 auto;
-        }
+      /* Status Colors */
+      --status-good: #10b981;
+      --status-warn: #f59e0b;
 
-        /* ヘッダー */
-        header {
-            text-align: center;
-            margin-bottom: 12px;
-        }
+      /* UI Transitions */
+      --transition-smooth: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    }
 
-        h1 { font-size: 1.2rem; font-weight: 700; }
-        .subtitle { font-size: 0.7rem; color: var(--text-secondary); }
-        .location-note { font-size: 0.65rem; color: #64748b; margin-top: 2px; }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
 
-        /* メトリクスグリッド */
-        .metrics-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 4px;
-            margin-bottom: 12px;
-        }
+    body {
+      background-color: var(--bg-dashboard);
+      color: var(--text-main);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      min-height: 100vh;
+      padding: 24px 16px;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      background-image: 
+        radial-gradient(circle at 50% 0%, rgba(56, 189, 248, 0.05) 0%, transparent 70%),
+        radial-gradient(circle at 80% 20%, rgba(245, 158, 11, 0.03) 0%, transparent 50%);
+    }
 
-        .metric-card {
-            background-color: var(--card-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            padding: 8px 2px;
-            text-align: center;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-        }
+    .dashboard-container {
+      width: 100%;
+      max-width: 1000px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
 
-        .metric-label { font-size: 0.7rem; color: var(--text-secondary); }
-        .metric-value { font-size: 0.95rem; font-weight: 700; margin-top: 2px; }
-        
-        /* サブテキスト領域：フォントサイズ拡大＋折り返し防止 */
-        .metric-sub {
-            font-size: 0.75rem;
-            color: var(--text-secondary);
-            margin-top: 1px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        
-        .metric-value.wave { color: var(--accent-wave); }
-        .metric-value.tide { color: var(--accent-tide); }
-        .metric-value.wind { color: var(--accent-wind); }
-        .metric-value.weather { 
-            color: var(--accent-weather); 
-            font-size: 1.6rem; 
-            line-height: 1.1;
-            margin: 2px 0; 
-        }
+    /* ==========================================================================
+       2. Common Glassmorphism Card Style
+       ========================================================================== */
+    .data-card {
+      background: var(--bg-card);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--border-card);
+      border-radius: 20px;
+      padding: 20px 24px;
+      transition: var(--transition-smooth);
+      position: relative;
+      overflow: hidden;
+    }
 
-        .wind-badge {
-            display: inline-block;
-            font-size: 0.55rem;
-            padding: 1px 3px;
-            border-radius: 4px;
-            margin-top: 2px;
-            font-weight: 600;
-        }
-        .badge-offshore { background-color: #166534; color: #4ade80; }
-        .badge-onshore { background-color: #991b1b; color: #fca5a5; }
-        .badge-cross { background-color: #854d0e; color: #fef08a; }
+    /* Dynamic Time-based Ambient Glows */
+    .data-card.is-day {
+      border-color: rgba(245, 158, 11, 0.3);
+      box-shadow: 0 8px 32px -4px var(--color-day-glow),
+                  inset 0 1px 1px rgba(255, 255, 255, 0.1);
+    }
 
-        .weather-sub-text {
-            font-size: 0.65rem;
-            color: var(--text-secondary);
-            font-weight: 500;
-        }
+    .data-card.is-night {
+      border-color: rgba(56, 189, 248, 0.25);
+      box-shadow: 0 8px 32px -4px var(--color-night-glow),
+                  inset 0 1px 1px rgba(255, 255, 255, 0.05);
+    }
 
-        /* ヒント・表示切り替え */
-        .scroll-hint {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-size: 0.7rem;
-            color: var(--text-secondary);
-            margin-bottom: 4px;
-        }
+    .data-card.is-twilight {
+      border-color: rgba(244, 63, 94, 0.35);
+      box-shadow: 0 8px 32px -4px var(--color-twilight-glow),
+                  inset 0 1px 1px rgba(255, 255, 255, 0.08);
+    }
 
-        .selected-time-display {
-            color: #f8fafc;
-            font-weight: bold;
-            background: #334155;
-            padding: 1px 6px;
-            border-radius: 4px;
-        }
+    /* ==========================================================================
+       3. Header & Time Controller
+       ========================================================================== */
+    .header-card {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
 
-        /* グラフコンテナ */
-        .chart-card {
-            background-color: var(--card-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
-            position: relative;
-            overflow: hidden;
-            padding: 10px 0 6px 0;
-        }
+    .location-info h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
 
-        .chart-legend-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 0 12px 8px 12px;
-            border-bottom: 1px solid var(--border-color);
-            margin-bottom: 6px;
-        }
+    .location-info .sub-text {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
 
-        .legend-item {
-            font-size: 0.7rem;
-            font-weight: bold;
-            display: flex;
-            align-items: center;
-            gap: 4px;
-        }
+    .time-selector {
+      display: flex;
+      background: rgba(0, 0, 0, 0.3);
+      padding: 4px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      gap: 4px;
+    }
 
-        .legend-color-box {
-            width: 10px;
-            height: 10px;
-            border-radius: 2px;
-        }
+    .time-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      padding: 8px 14px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: var(--transition-smooth);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
 
-        .legend-wave { color: var(--accent-wave); }
-        .legend-wave .legend-color-box { background-color: var(--accent-wave); }
-        .legend-tide { color: var(--accent-tide); }
-        .legend-tide .legend-color-box { background-color: var(--accent-tide); }
+    .time-btn:hover {
+      color: var(--text-main);
+      background: rgba(255, 255, 255, 0.05);
+    }
 
-        .chart-scroll-wrapper {
-            overflow-x: auto;
-            overflow-y: hidden;
-            -webkit-overflow-scrolling: touch;
-            position: relative;
-        }
+    .time-btn.active {
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--text-main);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
 
-        .chart-inner {
-            width: 2600px;
-            position: relative;
-        }
+    .time-btn.active[data-phase="day"] {
+      color: var(--color-day);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
 
-        .canvas-container {
-            height: 350px;
-            position: relative;
-        }
+    .time-btn.active[data-phase="twilight"] {
+      color: var(--color-twilight);
+      border: 1px solid rgba(244, 63, 94, 0.3);
+    }
 
-        /* 左軸領域 */
-        .sticky-axis-container {
-            position: sticky;
-            left: 0;
-            top: 0;
-            width: var(--axis-width);
-            height: 100%;
-            z-index: 10;
-            background-color: var(--card-bg);
-            border-right: 1px solid rgba(51, 65, 85, 0.4);
-            float: left;
-            display: flex;
-            flex-direction: column;
-        }
+    .time-btn.active[data-phase="night"] {
+      color: var(--color-night);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+    }
 
-        .axis-timeline-labels {
-            height: 65px;
-            margin-top: 6px;
-            padding-top: 6px;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-around;
-            align-items: center;
-            background-color: var(--card-bg);
-        }
+    /* ==========================================================================
+       4. Status Badges & Glow Animations
+       ========================================================================== */
+    .time-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+    }
 
-        .axis-label-item {
-            height: 20px;
-            line-height: 20px;
-            font-size: 0.65rem;
-            font-weight: bold;
-            text-align: center;
-        }
+    .badge-day {
+      background: rgba(245, 158, 11, 0.12);
+      color: var(--color-day);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
 
-        .axis-label-item.wave-label { color: var(--accent-wave); }
-        .axis-label-item.wind-val-label { color: var(--accent-wind); }
-        .axis-label-item.wind-dir-label { color: var(--text-secondary); }
+    .badge-twilight {
+      background: rgba(244, 63, 94, 0.12);
+      color: var(--color-twilight);
+      border: 1px solid rgba(244, 63, 94, 0.3);
+    }
 
-        .main-chart-container {
-            margin-left: var(--axis-width);
-            height: 350px;
-            position: relative;
-        }
+    .badge-night {
+      background: rgba(56, 189, 248, 0.12);
+      color: var(--color-night);
+      border: 1px solid rgba(56, 189, 248, 0.25);
+    }
 
-        /* タイムライン領域 */
-        .timeline-wrapper {
-            position: relative;
-            border-top: 1px dashed var(--border-color);
-            margin-top: 6px;
-            padding-top: 6px;
-            height: 65px;
-            margin-left: var(--axis-width);
-        }
+    .glow-icon {
+      display: inline-block;
+      animation: pulseGlow 3s infinite alternate ease-in-out;
+    }
 
-        .timeline-col {
-            position: absolute;
-            transform: translateX(-50%);
-            text-align: center;
-            display: flex;
-            flex-direction: column;
-            gap: 0;
-            cursor: pointer;
-            user-select: none;
-        }
+    @keyframes pulseGlow {
+      0% { transform: scale(1); filter: drop-shadow(0 0 2px currentColor); }
+      100% { transform: scale(1.1); filter: drop-shadow(0 0 8px currentColor); }
+    }
 
-        .wave-dir-arrow, .wind-val, .wind-arrow {
-            height: 20px;
-            line-height: 20px;
-        }
+    /* ==========================================================================
+       5. Metrics Grid
+       ========================================================================== */
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+    }
 
-        .wave-dir-arrow {
-            font-size: 0.8rem;
-            color: var(--accent-wave);
-            font-weight: bold;
-        }
+    .metric-card {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
 
-        .wind-val {
-            font-size: 0.7rem;
-            font-weight: 700;
-            color: var(--accent-wind);
-        }
+    .metric-label {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      font-weight: 500;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
 
-        .wind-arrow {
-            font-size: 0.85rem;
-            color: var(--text-primary);
-        }
+    .metric-value {
+      font-size: 1.8rem;
+      font-weight: 700;
+      margin: 12px 0 4px;
+      letter-spacing: -0.03em;
+    }
 
-        /* フッター・操作バー */
-        .controls {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-top: 12px;
-        }
+    .metric-sub {
+      font-size: 0.75rem;
+      color: var(--text-dim);
+    }
 
-        .btn-refresh {
-            background-color: #0284c7;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            padding: 6px 14px;
-            font-size: 0.8rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: opacity 0.2s;
-        }
+    /* ==========================================================================
+       6. Chart Area
+       ========================================================================== */
+    .chart-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
 
-        .btn-refresh:hover { opacity: 0.9; }
+    .chart-title {
+      font-size: 1rem;
+      font-weight: 600;
+    }
 
-        .last-update { font-size: 0.75rem; color: var(--text-secondary); }
+    .chart-container {
+      position: relative;
+      height: 280px;
+      width: 100%;
+    }
 
-        .loading-overlay {
-            position: absolute;
-            inset: 0;
-            background: rgba(30, 41, 59, 0.9);
-            border-radius: 12px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-weight: 600;
-            z-index: 20;
-        }
-    </style>
+    /* Responsive */
+    @media (max-width: 640px) {
+      body { padding: 12px 8px; }
+      .header-card { flex-direction: column; align-items: flex-start; }
+      .time-selector { width: 100%; justify-content: space-between; }
+      .time-btn { flex: 1; justify-content: center; padding: 8px 6px; }
+      .metrics-grid { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
 </head>
 <body>
 
-    <header>
-        <h1>🌊 磯の浦コンディション</h1>
-        <p class="subtitle">Open-Meteo API リアルタイム連携</p>
-        <p class="location-note">※ 観測地点: 北緯34.25, 東経135.08（磯ノ浦沖約1km）</p>
+  <div class="dashboard-container">
+
+    <!-- 1. HEADER CARD (Dynamic Ambient Glow) -->
+    <header class="data-card header-card is-twilight" id="headerCard">
+      <div class="location-info">
+        <h1>
+          磯ノ浦 (Isonoura) 
+          <span class="time-badge badge-twilight" id="phaseBadge">
+            <span class="glow-icon">🌅</span> 朝マズメ (Dawn)
+          </span>
+        </h1>
+        <div class="sub-text">和歌山県和歌山市 ・ 34.25°N, 135.08°E</div>
+      </div>
+
+      <!-- Time Phase Switcher (Demo Interactive) -->
+      <div class="time-selector">
+        <button class="time-btn" data-phase="day" onclick="setPhase('day')">
+          <span>☀️</span> 昼 (Day)
+        </button>
+        <button class="time-btn active" data-phase="twilight" onclick="setPhase('twilight')">
+          <span>🌅</span> 朝・夕 (Twilight)
+        </button>
+        <button class="time-btn" data-phase="night" onclick="setPhase('night')">
+          <span>🌙</span> 夜 (Night)
+        </button>
+      </div>
     </header>
 
+    <!-- 2. METRICS OVERVIEW -->
     <div class="metrics-grid">
-        <div class="metric-card">
-            <div class="metric-label">波高</div>
-            <div class="metric-value wave" id="currentWave">--</div>
-            <div class="metric-sub" id="wavePeriodDir">T: --s/--</div>
+      <div class="data-card metric-card is-twilight" id="metric1">
+        <div class="metric-label">
+          <span>波高 (Wave Height)</span>
+          <span>🌊</span>
         </div>
-        <div class="metric-card">
-            <div class="metric-label">潮位</div>
-            <div class="metric-value tide" id="currentTide">--</div>
-            <div class="metric-sub" id="tideExtremeTimes">満--:-- 干--:--</div>
+        <div class="metric-value" style="color: var(--text-main);">0.8m</div>
+        <div class="metric-sub">セット腰〜腹 ・ 周期 5.2s</div>
+      </div>
+
+      <div class="data-card metric-card is-twilight" id="metric2">
+        <div class="metric-label">
+          <span>風速・風向 (Wind)</span>
+          <span>🍃</span>
         </div>
-        <div class="metric-card">
-            <div class="metric-label">風速・風向</div>
-            <div class="metric-value wind" id="currentWind">--</div>
-            <div id="windTypeBadge" class="wind-badge">--</div>
+        <div class="metric-value" style="color: var(--status-good);">2.4m/s</div>
+        <div class="metric-sub">オフショア (北東) ・ 面良好</div>
+      </div>
+
+      <div class="data-card metric-card is-twilight" id="metric3">
+        <div class="metric-label">
+          <span>潮位 (Tide Level)</span>
+          <span>📉</span>
         </div>
-        <div class="metric-card">
-            <div class="metric-label">天気</div>
-            <div class="metric-value weather" id="currentWeather">--</div>
-            <div class="weather-sub-text" id="weatherText">--</div>
+        <div class="metric-value" style="color: var(--text-main);">142cm</div>
+        <div class="metric-sub">中潮 ・ 06:12 満潮</div>
+      </div>
+
+      <div class="data-card metric-card is-twilight" id="metric4">
+        <div class="metric-label">
+          <span>海水温 (Water Temp)</span>
+          <span>🌡️</span>
         </div>
+        <div class="metric-value" style="color: var(--color-day);">22.5°C</div>
+        <div class="metric-sub">3mmフルスーツ〜スプリング</div>
+      </div>
     </div>
 
-    <div class="scroll-hint">
-        <span id="selectedTimeLabel" class="selected-time-display">現在時刻を表示中</span>
-        <span>👈 タップで日時選択 / 横スワイプ</span>
-    </div>
+    <!-- 3. MAIN CHART CARD WITH DAY/NIGHT BACKGROUND SHADING -->
+    <section class="data-card is-twilight" id="chartCard">
+      <div class="chart-header">
+        <div class="chart-title">24時間 波高・風速推移 & 昼夜エリア</div>
+        <div class="metric-sub">背景の薄暗い領域＝夜間（日没〜日の出）</div>
+      </div>
+      <div class="chart-container">
+        <canvas id="seaConditionChart"></canvas>
+      </div>
+    </section>
 
-    <div class="chart-card">
-        <div id="loading" class="loading-overlay">取得中...</div>
+  </div>
 
-        <div class="chart-legend-header">
-            <div class="legend-item legend-wave">
-                <span class="legend-color-box"></span>
-                <span>波高 (m)</span>
-            </div>
-            <div class="legend-item legend-tide">
-                <span class="legend-color-box"></span>
-                <span>潮位 (m)</span>
-            </div>
-        </div>
+  <script>
+    /* ==========================================================================
+       Chart.js Plugin: Day/Night Background Shading
+       ========================================================================== */
+    const dayNightPlugin = {
+      id: 'dayNightBackground',
+      beforeDraw(chart) {
+        const { ctx, chartArea, scales: { x } } = chart;
+        if (!chartArea) return;
 
-        <div class="chart-scroll-wrapper">
-            <div class="chart-inner">
-                <div class="sticky-axis-container">
-                    <div style="height: 350px;">
-                        <canvas id="axisChart"></canvas>
-                    </div>
-                    <div class="axis-timeline-labels">
-                        <div class="axis-label-item wave-label">波向</div>
-                        <div class="axis-label-item wind-val-label">風速</div>
-                        <div class="axis-label-item wind-dir-label">風向</div>
-                    </div>
-                </div>
-                <div class="canvas-container">
-                    <div class="main-chart-container">
-                        <canvas id="marineChart"></canvas>
-                    </div>
-                </div>
-                <div class="timeline-wrapper" id="timelineWrapper"></div>
-            </div>
-        </div>
-    </div>
+        // 24時間データにおける昼夜・トワイライトのインデックス指定 (0〜23時)
+        // 例: 00:00~05:00(夜), 05:00~06:00(朝マズメ), 06:00~18:00(昼), 18:00~19:00(夕マズメ), 19:00~23:00(夜)
+        const timePhases = [
+          { start: 0, end: 5, color: 'rgba(5, 8, 16, 0.55)' },       // 夜間
+          { start: 5, end: 6.5, color: 'rgba(244, 63, 94, 0.12)' },   // 朝マズメ
+          { start: 6.5, end: 17.5, color: 'rgba(255, 255, 255, 0.02)' }, // 昼間
+          { start: 17.5, end: 19, color: 'rgba(244, 63, 94, 0.12)' }, // 夕マズメ
+          { start: 19, end: 23, color: 'rgba(5, 8, 16, 0.55)' }      // 夜間
+        ];
 
-    <div class="controls">
-        <span class="last-update" id="lastUpdate">更新: --</span>
-        <button class="btn-refresh" onclick="resetToNow()">現在に戻す</button>
-    </div>
+        ctx.save();
+        timePhases.forEach(phase => {
+          const xStart = x.getPixelForValue(phase.start);
+          const xEnd = x.getPixelForValue(phase.end);
+          
+          ctx.fillStyle = phase.color;
+          ctx.fillRect(
+            xStart, 
+            chartArea.top, 
+            xEnd - xStart, 
+            chartArea.bottom - chartArea.top
+          );
+        });
+        ctx.restore();
+      }
+    };
 
-    <script>
-        let myChart = null;
-        let axisChart = null;
-        let globalData = null;
-        let selectedIndex = 0;
-        let nowIndex = 0;
-
-        // プラグイン1：時間帯グラデーション背景描画処理
-        const dayNightGradientPlugin = {
-            id: 'dayNightGradient',
-            beforeDraw: (chart) => {
-                const { ctx, chartArea } = chart;
-                const meta = chart.getDatasetMeta(0);
-                if (!meta || !meta.data || meta.data.length === 0) return;
-
-                ctx.save();
-
-                // 時間帯に応じた背景色指定（日中 #2a59a6 / 朝夕 #1e3f74 / 夜 #162030）
-                const getTimeColor = (hour) => {
-                    if (hour >= 7 && hour <= 16) {
-                        return '#2a59a6'; // 日中
-                    } else if ((hour >= 4 && hour <= 6) || (hour >= 17 && hour <= 18)) {
-                        return '#1e3f74'; // 日の出・日の入り
-                    } else {
-                        return '#162030'; // 夜
-                    }
-                };
-
-                const top = chartArea.top;
-                const height = chartArea.bottom - chartArea.top;
-
-                // 時間軸に沿って背景をなめらかにグラデーション描画
-                for (let i = 0; i < meta.data.length - 1; i++) {
-                    const barCurrent = meta.data[i];
-                    const barNext = meta.data[i + 1];
-
-                    const hourCurrent = new Date(globalData.times[i]).getHours();
-                    const hourNext = new Date(globalData.times[i + 1]).getHours();
-
-                    const x1 = barCurrent.x;
-                    const x2 = barNext.x;
-
-                    const gradient = ctx.createLinearGradient(x1, 0, x2, 0);
-                    gradient.addColorStop(0, getTimeColor(hourCurrent));
-                    gradient.addColorStop(1, getTimeColor(hourNext));
-
-                    ctx.fillStyle = gradient;
-                    ctx.fillRect(x1, top, x2 - x1, height);
-                }
-
-                ctx.restore();
-            }
-        };
-
-        // プラグイン2：選択線・リアルタイム線描画
-        const timeLineLinesPlugin = {
-            id: 'timeLineLines',
-            afterDraw: (chart) => {
-                const meta = chart.getDatasetMeta(0);
-                if (!meta || !meta.data || meta.data.length === 0) return;
-
-                const topY = chart.scales.yWave.top;
-                const bottomY = chart.scales.yWave.bottom;
-                const ctx = chart.ctx;
-
-                const drawLine = (idx, color) => {
-                    if (idx >= 0 && meta.data[idx]) {
-                        const x = meta.data[idx].x;
-                        ctx.save();
-                        ctx.beginPath();
-                        ctx.moveTo(x, topY);
-                        ctx.lineTo(x, bottomY);
-                        ctx.lineWidth = 2;
-                        ctx.strokeStyle = color;
-                        ctx.setLineDash([4, 4]);
-                        ctx.stroke();
-                        ctx.restore();
-                    }
-                };
-
-                drawLine(nowIndex, '#ef4444');
-
-                const targetIndex = chart.config.options.plugins.targetIndex;
-                if (targetIndex !== undefined && targetIndex !== nowIndex) {
-                    drawLine(targetIndex, '#38bdf8');
-                }
-
-                syncTimelinePositions(chart);
-            }
-        };
-
-        Chart.register(dayNightGradientPlugin, timeLineLinesPlugin);
-
-        function getWeatherInfo(code) {
-            if (code == null) return { icon: '--', text: '--' };
-            if (code === 0) return { icon: '☀️', text: '快晴' };
-            if (code === 1 || code === 2) return { icon: '🌤️', text: '晴れ' };
-            if (code === 3) return { icon: '☁️', text: 'くもり' };
-            if (code >= 45 && code <= 48) return { icon: '🌫️', text: '霧' };
-            if (code >= 51 && code <= 55) return { icon: '🌧️', text: '霧雨' };
-            if (code >= 61 && code <= 65) return { icon: '☔', text: '雨' };
-            if (code >= 80 && code <= 82) return { icon: '🌧️', text: 'にわか雨' };
-            if (code >= 95) return { icon: '⚡', text: '雷雨' };
-            return { icon: '☁️', text: '不明' };
+    // Chart.js インスタンス生成
+    const ctx = document.getElementById('seaConditionChart').getContext('2d');
+    const seaChart = new Chart(ctx, {
+      type: 'line',
+      plugins: [dayNightPlugin],
+      data: {
+        labels: ['00:00', '02:00', '04:00', '06:00', '08:00', '10:00', '12:00', '14:00', '16:00', '18:00', '20:00', '22:00', '24:00'],
+        datasets: [
+          {
+            label: '波高 (m)',
+            data: [0.4, 0.4, 0.5, 0.8, 0.9, 0.7, 0.6, 0.5, 0.7, 0.8, 0.6, 0.5, 0.4],
+            borderColor: '#38bdf8',
+            backgroundColor: 'rgba(56, 189, 248, 0.1)',
+            borderWidth: 3,
+            fill: true,
+            tension: 0.4,
+            pointRadius: 4,
+            pointBackgroundColor: '#38bdf8'
+          },
+          {
+            label: '風速 (m/s)',
+            data: [1.2, 1.5, 1.8, 2.4, 3.1, 4.0, 4.5, 3.8, 2.9, 2.1, 1.8, 1.4, 1.1],
+            borderColor: '#f59e0b',
+            borderDash: [5, 5],
+            borderWidth: 2,
+            fill: false,
+            tension: 0.3,
+            pointRadius: 0
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            labels: { color: '#94a3b8', font: { size: 12 } }
+          },
+          tooltip: {
+            backgroundColor: 'rgba(15, 23, 42, 0.9)',
+            titleColor: '#f1f5f9',
+            bodyColor: '#cbd5e1',
+            borderColor: 'rgba(255, 255, 255, 0.1)',
+            borderWidth: 1
+          }
+        },
+        scales: {
+          x: {
+            grid: { color: 'rgba(255, 255, 255, 0.05)' },
+            ticks: { color: '#64748b' }
+          },
+          y: {
+            grid: { color: 'rgba(255, 255, 255, 0.05)' },
+            ticks: { color: '#64748b' },
+            beginAtZero: true
+          }
         }
+      }
+    });
 
-        function getDirectionInfo(deg) {
-            if (deg == null) return { text: '--', arrow: '', short: '--' };
-            const directions = ['北', '北北東', '北東', '東北東', '東', '東南東', '南東', '南南東', '南', '南南西', '南西', '西南西', '西', '西北西', '北西', '北北西'];
-            const shortDirections = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
-            const arrows = ['↓', '↙', '↙', '↙', '←', '↖', '↖', '↖', '↑', '↗', '↗', '↗', '→', '↘', '↘', '↘'];
-            const idx = Math.round(deg / 22.5) % 16;
-            return { text: directions[idx], arrow: arrows[idx], short: shortDirections[idx] };
-        }
+    /* ==========================================================================
+       Dynamic Theme Switching (Demo Controls)
+       ========================================================================== */
+    function setPhase(phase) {
+      const cards = document.querySelectorAll('.data-card');
+      const buttons = document.querySelectorAll('.time-btn');
+      const badge = document.getElementById('phaseBadge');
 
-        function getWindType(deg, speed) {
-            if (deg == null || speed == null || speed === '--') return { text: '--', class: '' };
-            
-            const s = Number(speed);
+      // Update Active Button
+      buttons.forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.phase === phase);
+      });
 
-            if (s < 2.5) {
-                return { text: '無風クリーン', class: 'badge-offshore' };
-            }
+      // Update Card Glow Styles
+      cards.forEach(card => {
+        card.classList.remove('is-day', 'is-night', 'is-twilight');
+        card.classList.add(`is-${phase}`);
+      });
 
-            const isOffshore = (deg >= 337.5 || deg <= 67.5);
-            const isOnshore = (deg >= 157.5 && deg <= 247.5);
-
-            if (isOffshore) {
-                if (s <= 5.5) {
-                    return { text: 'オフショア 面良し', class: 'badge-offshore' };
-                } else if (s <= 8.5) {
-                    return { text: '強オフ 面煽られ', class: 'badge-cross' };
-                } else {
-                    return { text: '抑圧強オフ 難あり', class: 'badge-onshore' };
-                }
-            }
-
-            if (isOnshore) {
-                if (s <= 4.0) {
-                    return { text: '弱オン ざわつき', class: 'badge-cross' };
-                } else {
-                    return { text: 'オンショア 面荒れ', class: 'badge-onshore' };
-                }
-            }
-
-            if (s <= 5.0) {
-                return { text: 'クロス風 影響小', class: 'badge-cross' };
-            } else {
-                return { text: 'クロス風 面影響あり', class: 'badge-onshore' };
-            }
-        }
-
-        function getHighLowTideTimes(targetIndex) {
-            if (!globalData || !globalData.seaLevels || !globalData.times[targetIndex]) {
-                return '満--:-- 干--:--';
-            }
-
-            const targetDateStr = globalData.times[targetIndex].substring(0, 10);
-            
-            const dayIndices = [];
-            globalData.times.forEach((t, i) => {
-                if (t.startsWith(targetDateStr)) {
-                    dayIndices.push(i);
-                }
-            });
-
-            if (dayIndices.length === 0) return '満--:-- 干--:--';
-
-            let highTime = null;
-            let lowTime = null;
-            let maxVal = -Infinity;
-            let minVal = Infinity;
-
-            for (let i of dayIndices) {
-                const val = globalData.seaLevels[i];
-                if (val != null) {
-                    if (val > maxVal) {
-                        maxVal = val;
-                        highTime = globalData.times[i];
-                    }
-                    if (val < minVal) {
-                        minVal = val;
-                        lowTime = globalData.times[i];
-                    }
-                }
-            }
-
-            const formatHM = (timeStr) => {
-                if (!timeStr) return '--:--';
-                const d = new Date(timeStr);
-                const h = d.getHours().toString().padStart(2, '0');
-                const m = d.getMinutes().toString().padStart(2, '0');
-                return `${h}:${m}`;
-            };
-
-            return `満${formatHM(highTime)} 干${formatHM(lowTime)}`;
-        }
-
-        async function fetchData() {
-            const loadingEl = document.getElementById('loading');
-            loadingEl.style.display = 'flex';
-
-            const urlMarine = 'https://marine-api.open-meteo.com/v1/marine?latitude=34.25&longitude=135.08&hourly=wave_height,wave_direction,wave_period,sea_level_height_msl&timezone=Asia%2FTokyo&forecast_days=3';
-            const urlWeather = 'https://api.open-meteo.com/v1/forecast?latitude=34.25&longitude=135.08&hourly=wind_speed_10m,wind_direction_10m,weather_code&timezone=Asia%2FTokyo&forecast_days=3';
-
-            try {
-                const [resMarine, resWeather] = await Promise.all([fetch(urlMarine), fetch(urlWeather)]);
-                if (!resMarine.ok || !resWeather.ok) throw new Error('データ取得に失敗しました');
-
-                const dataMarine = await resMarine.json();
-                const dataWeather = await resWeather.json();
-
-                globalData = {
-                    times: dataMarine.hourly.time || [],
-                    waveHeights: dataMarine.hourly.wave_height || [],
-                    waveDirections: dataMarine.hourly.wave_direction || [],
-                    wavePeriods: dataMarine.hourly.wave_period || [],
-                    seaLevels: dataMarine.hourly.sea_level_height_msl || [],
-                    windSpeeds: dataWeather.hourly.wind_speed_10m ? dataWeather.hourly.wind_speed_10m.map(v => v != null ? (v / 3.6).toFixed(1) : null) : [],
-                    windDirections: dataWeather.hourly.wind_direction_10m || [],
-                    weatherCodes: dataWeather.hourly.weather_code || []
-                };
-
-                const now = new Date();
-                let minDiff = Infinity;
-                globalData.times.forEach((t, i) => {
-                    const diff = Math.abs(new Date(t) - now);
-                    if (diff < minDiff) {
-                        minDiff = diff;
-                        nowIndex = i;
-                    }
-                });
-
-                selectedIndex = nowIndex;
-                renderAll();
-
-                document.getElementById('lastUpdate').textContent = '更新: ' + now.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
-            } catch (error) {
-                alert('エラー: ' + error.message);
-            } finally {
-                loadingEl.style.display = 'none';
-            }
-        }
-
-        function updateMetricsCards(index) {
-            if (!globalData || !globalData.times || !globalData.times[index]) return;
-
-            const t = new Date(globalData.times[index]);
-            const month = t.getMonth() + 1;
-            const date = t.getDate();
-            const hours = t.getHours().toString().padStart(2, '0');
-
-            const labelEl = document.getElementById('selectedTimeLabel');
-            if (index === nowIndex) {
-                labelEl.textContent = '現在時刻を表示中';
-                labelEl.style.background = '#334155';
-            } else {
-                labelEl.textContent = `${month}/${date} ${hours}:00 の予測`;
-                labelEl.style.background = '#0284c7';
-            }
-
-            const curWave = globalData.waveHeights[index] != null ? Number(globalData.waveHeights[index]).toFixed(2) : '--';
-            const curTide = globalData.seaLevels[index] != null ? Number(globalData.seaLevels[index]).toFixed(2) : '--';
-            const curWindSpeed = globalData.windSpeeds[index] != null ? globalData.windSpeeds[index] : '--';
-            const windType = getWindType(globalData.windDirections[index], curWindSpeed);
-            const weatherInfo = getWeatherInfo(globalData.weatherCodes[index]);
-
-            const periodVal = globalData.wavePeriods[index] != null ? `${Number(globalData.wavePeriods[index]).toFixed(1)}s` : '--s';
-            const waveDirInfo = getDirectionInfo(globalData.waveDirections[index]);
-            const waveSubText = `T: ${periodVal}/${waveDirInfo.text}`;
-
-            const tideSubText = getHighLowTideTimes(index);
-
-            document.getElementById('currentWave').textContent = curWave !== '--' ? `${curWave}m` : '--';
-            document.getElementById('wavePeriodDir').textContent = waveSubText;
-
-            document.getElementById('currentTide').textContent = curTide !== '--' ? `${curTide}m` : '--';
-            document.getElementById('tideExtremeTimes').textContent = tideSubText;
-
-            document.getElementById('currentWind').textContent = curWindSpeed !== '--' ? `${curWindSpeed}m/s` : '--';
-
-            const badgeEl = document.getElementById('windTypeBadge');
-            badgeEl.textContent = windType.text;
-            badgeEl.className = `wind-badge ${windType.class}`;
-
-            document.getElementById('currentWeather').textContent = weatherInfo.icon;
-            document.getElementById('weatherText').textContent = weatherInfo.text;
-        }
-
-        function resetToNow() {
-            if (!globalData) {
-                fetchData();
-                return;
-            }
-            selectedIndex = nowIndex;
-            renderAll();
-        }
-
-        function selectIndex(index) {
-            selectedIndex = index;
-            updateMetricsCards(selectedIndex);
-            if (myChart) {
-                myChart.config.options.plugins.targetIndex = selectedIndex;
-                myChart.update();
-            }
-        }
-
-        function renderAll() {
-            if (!globalData || !globalData.times) return;
-
-            const labels = globalData.times.map(t => {
-                const d = new Date(t);
-                return d.getHours() === 0 ? `${d.getMonth() + 1}/${d.getDate()}` : `${d.getHours()}`;
-            });
-
-            updateMetricsCards(selectedIndex);
-            renderTimelineData(globalData.waveDirections, globalData.windSpeeds, globalData.windDirections);
-            renderChart(labels, globalData.times, globalData.waveHeights, globalData.seaLevels);
-        }
-
-        function syncTimelinePositions(chart) {
-            const meta = chart.getDatasetMeta(0);
-            if (!meta || !meta.data) return;
-
-            const cols = document.querySelectorAll('.timeline-col');
-            const stepWidth = meta.data.length > 1 ? meta.data[1].x - meta.data[0].x : 0;
-
-            meta.data.forEach((bar, i) => {
-                if (cols[i]) {
-                    cols[i].style.left = `${bar.x}px`;
-                    if (stepWidth > 0) cols[i].style.width = `${stepWidth}px`;
-                }
-            });
-        }
-
-        function renderChart(labels, rawTimes, waveData, tideData) {
-            const ctx = document.getElementById('marineChart').getContext('2d');
-            const axisCtx = document.getElementById('axisChart').getContext('2d');
-
-            if (myChart) myChart.destroy();
-            if (axisChart) axisChart.destroy();
-
-            const validWaveHeights = waveData.filter(v => v != null);
-            const maxWaveVal = validWaveHeights.length > 0 ? Math.max(...validWaveHeights) : 0;
-            const targetMax = maxWaveVal > 2.0 ? Math.ceil(maxWaveVal * 1.1 * 10) / 10 : 2.0;
-
-            axisChart = new Chart(axisCtx, {
-                type: 'bar',
-                data: {
-                    labels: [''],
-                    datasets: [{ data: [0], yAxisID: 'yWave' }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    layout: { padding: 0 },
-                    plugins: { legend: { display: false }, tooltip: { enabled: false } },
-                    scales: {
-                        x: { display: false },
-                        yWave: {
-                            type: 'linear',
-                            position: 'left',
-                            beginAtZero: true,
-                            max: targetMax,
-                            afterFit: (scale) => { scale.width = 42; },
-                            ticks: { color: '#38bdf8', font: { size: 10, weight: '600' }, padding: 3 },
-                            grid: { display: false }
-                        }
-                    }
-                }
-            });
-
-            myChart = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: labels,
-                    datasets: [
-                        {
-                            label: '波高 (m)',
-                            data: waveData,
-                            backgroundColor: 'rgba(56, 189, 248, 0.65)',
-                            borderColor: '#38bdf8',
-                            borderWidth: 1,
-                            yAxisID: 'yWave',
-                            order: 2
-                        },
-                        {
-                            label: '潮位 (m)',
-                            data: tideData,
-                            type: 'line',
-                            borderColor: '#fb923c',
-                            backgroundColor: '#fb923c',
-                            borderWidth: 2,
-                            pointRadius: 0,
-                            tension: 0.3,
-                            yAxisID: 'yTide',
-                            order: 1
-                        }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    onClick: (e, activeElements) => {
-                        if (activeElements.length > 0) {
-                            selectIndex(activeElements[0].index);
-                        } else {
-                            const rect = e.chart.canvas.getBoundingClientRect();
-                            const index = e.chart.scales.x.getValueForPixel(e.x - rect.left);
-                            if (index >= 0 && index < rawTimes.length) {
-                                selectIndex(index);
-                            }
-                        }
-                    },
-                    plugins: {
-                        legend: { display: false },
-                        targetIndex: selectedIndex,
-                        tooltip: {
-                            filter: function(tooltipItem) {
-                                return tooltipItem.datasetIndex === 0;
-                            },
-                            callbacks: {
-                                title: function(tooltipItems) {
-                                    if (!tooltipItems.length) return '';
-                                    const index = tooltipItems[0].dataIndex;
-                                    const dateStr = rawTimes[index];
-                                    
-                                    if (!dateStr) return '';
-
-                                    const d = new Date(dateStr);
-                                    const month = d.getMonth() + 1;
-                                    const date = d.getDate();
-                                    const hours = d.getHours().toString().padStart(2, '0');
-                                    const days = ['日', '月', '火', '水', '木', '金', '土'];
-                                    const dayName = days[d.getDay()];
-
-                                    return `${month}/${date}(${dayName}) ${hours}:00`;
-                                },
-                                label: function(context) {
-                                    const val = context.parsed.y;
-                                    if (val == null) return '';
-                                    return `波高: ${Number(val).toFixed(2)}m`;
-                                }
-                            }
-                        }
-                    },
-                    scales: {
-                        x: {
-                            grid: { color: 'rgba(51, 65, 85, 0.5)' },
-                            ticks: {
-                                color: (ctx) => (new Date(rawTimes[ctx.index]).getHours() % 3 === 0) ? '#f8fafc' : '#64748b',
-                                font: (ctx) => ({
-                                    size: (new Date(rawTimes[ctx.index]).getHours() % 3 === 0) ? 11 : 9,
-                                    weight: (new Date(rawTimes[ctx.index]).getHours() % 3 === 0) ? 'bold' : 'normal'
-                                })
-                            }
-                        },
-                        yWave: {
-                            type: 'linear',
-                            position: 'left',
-                            beginAtZero: true,
-                            max: targetMax,
-                            display: false
-                        },
-                        yTide: {
-                            type: 'linear',
-                            position: 'right',
-                            grid: { display: false },
-                            afterFit: (scale) => { scale.width = 42; },
-                            ticks: { color: '#fb923c', font: { size: 10, weight: '600' }, padding: 3 }
-                        }
-                    }
-                }
-            });
-        }
-
-        function renderTimelineData(waveDirections, windSpeeds, windDirections) {
-            const container = document.getElementById('timelineWrapper');
-            container.innerHTML = '';
-
-            if (!waveDirections) return;
-
-            const fragment = document.createDocumentFragment();
-
-            waveDirections.forEach((wDeg, i) => {
-                const waveInfo = getDirectionInfo(wDeg);
-                const windInfo = getDirectionInfo(windDirections ? windDirections[i] : null);
-                const wSpeed = windSpeeds && windSpeeds[i] != null ? windSpeeds[i] : '--';
-
-                const col = document.createElement('div');
-                col.className = 'timeline-col';
-                col.onclick = () => selectIndex(i);
-
-                col.innerHTML = `
-                    <div class="wave-dir-arrow" title="波向: ${waveInfo.text}">${waveInfo.arrow}</div>
-                    <div class="wind-val">${wSpeed}</div>
-                    <div class="wind-arrow" title="風向: ${windInfo.text}">${windInfo.arrow}</div>
-                `;
-                fragment.appendChild(col);
-            });
-
-            container.appendChild(fragment);
-        }
-
-        window.onload = fetchData;
-    </script>
+      // Update Badge Text & Style
+      badge.className = `time-badge badge-${phase}`;
+      if (phase === 'day') {
+        badge.innerHTML = '<span class="glow-icon">☀️</span> 昼 (Daytime)';
+      } else if (phase === 'twilight') {
+        badge.innerHTML = '<span class="glow-icon">🌅</span> 朝マズメ (Dawn)';
+      } else {
+        badge.innerHTML = '<span class="glow-icon">🌙</span> 夜 (Night)';
+      }
+    }
+  </script>
 </body>
 </html>
