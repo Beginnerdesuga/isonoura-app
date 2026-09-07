@@ -4,6 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>磯の浦 波・潮・風・天気モニター</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0f172a">
+    <link rel="icon" href="icons/icon-192.png">
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="磯の浦">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
@@ -975,6 +982,15 @@
         }
 
         window.onload = fetchData;
+
+        // Service Worker登録（対応ブラウザのみ・ホーム画面に追加できるようにするための最小限の登録）
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js').catch(() => {
+                    // 登録に失敗しても通常のWeb表示には影響しない
+                });
+            });
+        }
 
         window.addEventListener('resize', () => {
             const badgeEl = document.getElementById('windTypeBadge');
