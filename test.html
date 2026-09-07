@@ -319,8 +319,7 @@
     <header>
         <h1>🌊 磯の浦コンディション</h1>
         <p class="subtitle">Open-Meteo API リアルタイム連携</p>
-        <p class="location-note">※ 観測地点: 北緯34.25, 東経135.08（磯の浦沖約1km）</p>
-        <p class="location-note">※ 波向・風向の矢印は磯の浦の沖向き（南南西・200°）を上とした相対角度で表示</p>
+        <p class="location-note">※ 観測地点: 北緯34.25, 東経135.08（磯の浦沖約1km）波・風起点：南南西・200°</p>
     </header>
 
     <div class="metrics-grid">
@@ -432,6 +431,43 @@
             relative = ((relative % 360) + 360) % 360;
             return relative;
         }
+
+        // 昼夜の境界（固定：5時〜18時を昼間とする）
+        const DAY_START_HOUR = 5;
+        const DAY_END_HOUR = 18;
+
+        function isDaytime(hour) {
+            return hour >= DAY_START_HOUR && hour <= DAY_END_HOUR;
+        }
+
+        // Chart.jsプラグイン：グラフ背景に昼夜の帯を描画
+        const dayNightBgPlugin = {
+            id: 'dayNightBg',
+            beforeDatasetsDraw: (chart) => {
+                if (chart.canvas.id !== 'marineChart' || !globalData || !globalData.times.length) return;
+
+                const { ctx, chartArea: { top, bottom }, scales: { x } } = chart;
+                const times = globalData.times;
+                ctx.save();
+
+                for (let i = 0; i < times.length; i++) {
+                    const hour = new Date(times[i]).getHours();
+                    const day = isDaytime(hour);
+
+                    const xCenter = x.getPixelForValue(i);
+                    const half = (x.getPixelForValue(1) - x.getPixelForValue(0)) / 2 || 8;
+                    const xStart = xCenter - half;
+                    const xEnd = xCenter + half;
+
+                    ctx.fillStyle = day ? 'rgba(250, 204, 21, 0.05)' : 'rgba(15, 23, 42, 0.45)';
+                    ctx.fillRect(xStart, top, xEnd - xStart, bottom - top);
+                }
+
+                ctx.restore();
+            }
+        };
+
+        Chart.register(dayNightBgPlugin);
 
         // Chart.js プラグイン：選択線および下部タイムラインの同期
         const timeLineLinesPlugin = {
@@ -879,7 +915,7 @@
                         x: {
                             grid: { color: 'rgba(51, 65, 85, 0.5)' },
                             ticks: {
-                                color: (ctx) => (new Date(rawTimes[ctx.index]).getHours() % 3 === 0) ? '#f8fafc' : '#64748b',
+                                color: (ctx) => isDaytime(new Date(rawTimes[ctx.index]).getHours()) ? '#f8fafc' : '#64748b',
                                 font: (ctx) => ({
                                     size: (new Date(rawTimes[ctx.index]).getHours() % 3 === 0) ? 11 : 9,
                                     weight: (new Date(rawTimes[ctx.index]).getHours() % 3 === 0) ? 'bold' : 'normal'
