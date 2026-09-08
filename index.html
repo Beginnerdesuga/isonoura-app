@@ -382,7 +382,7 @@
     <div class="scroll-hint">
         <span id="selectedTimeLabel" class="selected-time-display">現在時刻を表示中</span>
         <span>
-            <span class="legend-mark mark-day">■</span>昼　<span class="legend-mark mark-night">■</span>夜　/　タップで日時選択　/　横スワイプ
+            <span class="legend-mark mark-day">■</span>昼 <span class="legend-mark mark-night">■</span>夜 / タップで日時選択 / 横スワイプ
         </span>
     </div>
 
@@ -685,6 +685,7 @@
 
                 selectedIndex = nowIndex;
                 renderAll();
+                requestAnimationFrame(() => scrollChartToIndex(nowIndex));
 
                 document.getElementById('lastUpdate').textContent = '更新: ' + now.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
             } catch (error) {
@@ -768,6 +769,26 @@
             }
         }
 
+        // グラフの指定インデックスのバーが画面中央付近に来るよう、横スクロール位置を合わせる
+        function scrollChartToIndex(index) {
+            if (!myChart) return;
+            const meta = myChart.getDatasetMeta(0);
+            if (!meta || !meta.data || !meta.data[index]) return;
+
+            const wrapper = document.querySelector('.chart-scroll-wrapper');
+            if (!wrapper) return;
+
+            const axisWidth = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--axis-width')) || 42;
+            const barX = meta.data[index].x; // main-chart-container内でのローカルpx位置
+            const visibleWidth = wrapper.clientWidth - axisWidth;
+            let target = barX - visibleWidth / 2; // 表示エリアの中央にバーが来るように
+
+            const maxScroll = wrapper.scrollWidth - wrapper.clientWidth;
+            target = Math.max(0, Math.min(target, maxScroll));
+
+            wrapper.scrollLeft = target;
+        }
+
         function resetToNow() {
             if (!globalData) {
                 fetchData();
@@ -775,6 +796,7 @@
             }
             selectedIndex = nowIndex;
             renderAll();
+            requestAnimationFrame(() => scrollChartToIndex(nowIndex));
         }
 
         function selectIndex(index) {
