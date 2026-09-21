@@ -574,6 +574,21 @@
             const isOffshore = (windDeg >= 337.5 || windDeg <= 67.5);
             const isOnshore = (windDeg >= 157.5 && windDeg <= 247.5);
 
+            // 【新規追加分】波高が低い場合の判定
+    if (height < 0.4) {
+        return `波高は${height.toFixed(2)}mとサイズ不足です。面がクリーンであってもうねりのパワーが足りず、サーフボードでのテイクオフや滑走は非常に困難なコンディションです。`;
+    }
+
+    if (height >= 0.4 && height < 0.6) {
+        if (isOffshore && speed < 8.5) {
+            return `波高${height.toFixed(2)}mの小波コンディションです。面は整っていますがサイズが控えめなため、ロングボードや高浮力ソフトボードでの練習向きです。`;
+        } else if (isOnshore) {
+            return `波高${height.toFixed(2)}mとサイズが小さいうえにオンショアの影響で割れづらく、サーフィンには物足りない状態です。`;
+        } else {
+            return `波高${height.toFixed(2)}mの物足りないサイズ感です。小波用ボードや浮力のある板での使用をおすすめします。`;
+        }
+    }
+
             if (isOffshore && speed >= 8.5 && p <= 6) {
                 return `沖合の波高は${height.toFixed(2)}mありますが、10m/s前後の強力なオフショアと短周期(${p}秒)の影響で波頭が抑え込まれます。岸際では波が潰されて割りづらく、表示数値より実効サイズは大幅にダウンする傾向です。`;
             }
