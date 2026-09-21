@@ -356,9 +356,10 @@
             </div>
         </div>
         <div class="metric-card">
-            <div class="metric-label">天気</div>
+            <div class="metric-label">天気 / 水温</div>
             <div class="metric-sub" id="weatherText">--</div>
             <div class="metric-value weather" id="currentWeather">--</div>
+            <div class="metric-sub" style="color: #38bdf8; font-weight: bold; margin-top: 3px;" id="seaTempText">水温 --℃</div>
         </div>
     </div>
 
@@ -574,20 +575,19 @@
             const isOffshore = (windDeg >= 337.5 || windDeg <= 67.5);
             const isOnshore = (windDeg >= 157.5 && windDeg <= 247.5);
 
-            // 【新規追加分】波高が低い場合の判定
-    if (height < 0.4) {
-        return `波高は${height.toFixed(2)}mとサイズ不足です。面がクリーンであってもうねりのパワーが足りず、サーフボードでのテイクオフや滑走は非常に困難なコンディションです。`;
-    }
+            if (height < 0.4) {
+                return `波高は${height.toFixed(2)}mとサイズ不足です。面がクリーンであってもうねりのパワーが足りず、サーフボードでのテイクオフや滑走は非常に困難なコンディションです。`;
+            }
 
-    if (height >= 0.4 && height < 0.6) {
-        if (isOffshore && speed < 8.5) {
-            return `波高${height.toFixed(2)}mの小波コンディションです。面は整っていますがサイズが控えめなため、ロングボードや高浮力ソフトボードでの練習向きです。`;
-        } else if (isOnshore) {
-            return `波高${height.toFixed(2)}mとサイズが小さいうえにオンショアの影響で割れづらく、サーフィンには物足りない状態です。`;
-        } else {
-            return `波高${height.toFixed(2)}mの物足りないサイズ感です。小波用ボードや浮力のある板での使用をおすすめします。`;
-        }
-    }
+            if (height >= 0.4 && height < 0.6) {
+                if (isOffshore && speed < 8.5) {
+                    return `波高${height.toFixed(2)}mの小波コンディションです。面は整っていますがサイズが控えめなため、ロングボードや高浮力ソフトボードでの練習向きです。`;
+                } else if (isOnshore) {
+                    return `波高${height.toFixed(2)}mとサイズが小さいうえにオンショアの影響で割れづらく、サーフィンには物足りない状態です。`;
+                } else {
+                    return `波高${height.toFixed(2)}mの物足りないサイズ感です。小波用ボードや浮力のある板での使用をおすすめします。`;
+                }
+            }
 
             if (isOffshore && speed >= 8.5 && p <= 6) {
                 return `沖合の波高は${height.toFixed(2)}mありますが、10m/s前後の強力なオフショアと短周期(${p}秒)の影響で波頭が抑え込まれます。岸際では波が潰されて割りづらく、表示数値より実効サイズは大幅にダウンする傾向です。`;
@@ -686,7 +686,7 @@
             const loadingEl = document.getElementById('loading');
             if (loadingEl) loadingEl.style.display = 'flex';
 
-            const urlMarine = 'https://marine-api.open-meteo.com/v1/marine?latitude=34.25&longitude=135.08&hourly=wave_height,wave_direction,wave_period,sea_level_height_msl&timezone=Asia%2FTokyo&forecast_days=3';
+            const urlMarine = 'https://marine-api.open-meteo.com/v1/marine?latitude=34.25&longitude=135.08&hourly=wave_height,wave_direction,wave_period,sea_level_height_msl,sea_surface_temperature&timezone=Asia%2FTokyo&forecast_days=3';
             const urlWeather = 'https://api.open-meteo.com/v1/forecast?latitude=34.25&longitude=135.08&hourly=wind_speed_10m,wind_direction_10m,weather_code&timezone=Asia%2FTokyo&forecast_days=3';
 
             try {
@@ -702,6 +702,7 @@
                     waveDirections: dataMarine.hourly.wave_direction || [],
                     wavePeriods: dataMarine.hourly.wave_period || [],
                     seaLevels: dataMarine.hourly.sea_level_height_msl || [],
+                    seaTemps: dataMarine.hourly.sea_surface_temperature || [],
                     windSpeeds: dataWeather.hourly.wind_speed_10m ? dataWeather.hourly.wind_speed_10m.map(v => v != null ? (v / 3.6).toFixed(1) : null) : [],
                     windDirections: dataWeather.hourly.wind_direction_10m || [],
                     weatherCodes: dataWeather.hourly.weather_code || []
@@ -750,6 +751,7 @@
             const curWave = globalData.waveHeights[index] != null ? Number(globalData.waveHeights[index]).toFixed(2) : '--';
             const curTide = globalData.seaLevels[index] != null ? Number(globalData.seaLevels[index]).toFixed(2) : '--';
             const curWindSpeed = globalData.windSpeeds[index] != null ? globalData.windSpeeds[index] : '--';
+            const curSeaTemp = globalData.seaTemps && globalData.seaTemps[index] != null ? Number(globalData.seaTemps[index]).toFixed(1) : '--';
             const windType = getWindType(globalData.windDirections[index], curWindSpeed);
             const weatherInfo = getWeatherInfo(globalData.weatherCodes[index]);
 
@@ -773,6 +775,7 @@
 
             document.getElementById('weatherText').textContent = weatherInfo.text;
             document.getElementById('currentWeather').textContent = weatherInfo.icon;
+            document.getElementById('seaTempText').textContent = `水温 ${curSeaTemp}℃`;
 
             const waveArrow = document.getElementById('waveCompassArrow');
             if (waveArrow) {
