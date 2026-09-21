@@ -427,6 +427,12 @@
         <button class="btn-refresh" onclick="resetToNow()">現在に戻す</button>
     </div>
 
+    <!-- ★「現在に戻す」ボタンより下の余白エリアに挿入 -->
+    <div id="conditionAdviceCard" style="background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px; padding: 10px; margin-top: 12px; font-size: 0.8rem; line-height: 1.4;">
+        <div style="font-weight: bold; color: var(--accent-wave); margin-bottom: 4px;">💡 コンディション予想</div>
+        <div id="conditionAdviceText" style="color: #e2e8f0;">データ読み込み中...</div>
+    </div>
+
     <script>
         let myChart = null;
         let axisChart = null;
