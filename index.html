@@ -72,10 +72,10 @@
         .metric-label { font-size: 0.65rem; color: var(--text-secondary); }
         .metric-value { font-size: 0.95rem; font-weight: 700; margin-top: 2px; }
 
-        /* ★カード下部テキスト：サイズ拡大・太字化・文字間隔最適化 */
+        /* カード下部テキスト */
         .metric-sub {
             font-size: 0.85rem;
-            font-weight:  400;
+            font-weight: 400;
             color: #e2e8f0;
             margin-top: 3px;
             letter-spacing: -0.5px;
@@ -86,7 +86,7 @@
         .metric-value.tide { color: var(--accent-tide); }
         .metric-value.wind { color: var(--accent-wind); }
 
-        /* 天気カード：ラベル→テキスト→アイコンの3段構成 */
+        /* 天気カード */
         .metric-value.weather {
             color: var(--accent-weather);
             font-size: 1.8rem;
@@ -94,7 +94,7 @@
             margin-top: 4px;
         }
 
-        /* 方位コンパス（波向・風向共通） */
+        /* 方位コンパス */
         .compass-wrap {
             display: flex;
             justify-content: center;
@@ -140,10 +140,9 @@
             padding: 1px 6px;
             border-radius: 4px;
         }
-        /* 昼夜凡例（scroll-hint内）：dayNightBgPluginの色と同じ値を使用ではない */
-            .legend-mark{font-size:0.9em}
-            .mark-day{color:#facc15}
-            .mark-night{color:#20252b}
+        .legend-mark { font-size: 0.9em; }
+        .mark-day { color: #facc15; }
+        .mark-night { color: #20252b; }
 
         /* グラフコンテナ */
         .chart-card {
@@ -427,7 +426,7 @@
         <button class="btn-refresh" onclick="resetToNow()">現在に戻す</button>
     </div>
 
-    <!-- ★「現在に戻す」ボタンより下の余白エリアに挿入 -->
+    <!-- 「現在に戻す」ボタンより下の余白エリア -->
     <div id="conditionAdviceCard" style="background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px; padding: 10px; margin-top: 12px; font-size: 0.8rem; line-height: 1.4;">
         <div style="font-weight: bold; color: var(--accent-wave); margin-bottom: 4px;">💡 コンディション予想</div>
         <div id="conditionAdviceText" style="color: #e2e8f0;">データ読み込み中...</div>
@@ -584,48 +583,50 @@
                 return { text: 'クロス風 面影響あり', class: 'badge-onshore' };
             }
         }
+
         function getConditionAdvice(waveHeight, windSpeed, windDeg, period) {
-    if (waveHeight == null || windSpeed == null || period == null) {
-        return "データが不足しているため判定できません。";
-    }
+            if (waveHeight == null || windSpeed == null || period == null) {
+                return "データが不足しているため判定できません。";
+            }
 
-    const speed = Number(windSpeed);
-    const height = Number(waveHeight);
-    const p = Number(period);
+            const speed = Number(windSpeed);
+            const height = Number(waveHeight);
+            const p = Number(period);
 
-    const isOffshore = (windDeg >= 337.5 || windDeg <= 67.5);
-    const isOnshore = (windDeg >= 157.5 && windDeg <= 247.5);
+            const isOffshore = (windDeg >= 337.5 || windDeg <= 67.5);
+            const isOnshore = (windDeg >= 157.5 && windDeg <= 247.5);
 
-    if (isOffshore && speed >= 8.5 && p <= 6) {
-        return `沖合の波高は${height.toFixed(2)}mありますが、10m/s前後の強力なオフショアと短周期(${p}秒)の影響で波頭が抑え込まれます。岸際では波が潰されて割りづらく、表示数値より実効サイズは大幅にダウンする傾向です。`;
-    }
+            if (isOffshore && speed >= 8.5 && p <= 6) {
+                return `沖合の波高は${height.toFixed(2)}mありますが、10m/s前後の強力なオフショアと短周期(${p}秒)の影響で波頭が抑え込まれます。岸際では波が潰されて割りづらく、表示数値より実効サイズは大幅にダウンする傾向です。`;
+            }
 
-    if (isOffshore && speed >= 8.5 && p > 6) {
-        return `風が強く波頭が煽られますが、うねりのパワー(${p}秒)があるためインサイド寄りやブレイク位置を選べば遊べる可能性があります。`;
-    }
+            if (isOffshore && speed >= 8.5 && p > 6) {
+                return `風が強く波頭が煽られますが、うねりのパワー(${p}秒)があるためインサイド寄りやブレイク位置を選べば遊べる可能性があります。`;
+            }
 
-    if (isOffshore && speed >= 2.5 && speed < 8.5) {
-        if (p >= 8) {
-            return `適度なオフショアで面が整い、グランドスウェル(${p}秒)のパワーもしっかり届く好コンディションが期待できます。`;
-        } else {
-            return `面は綺麗に保たれますが、周期がやや短いため(${p}秒)岸寄りの浅瀬で一気に崩れる波になりやすいです。`;
+            if (isOffshore && speed >= 2.5 && speed < 8.5) {
+                if (p >= 8) {
+                    return `適度なオフショアで面が整い、グランドスウェル(${p}秒)のパワーもしっかり届く好コンディションが期待できます。`;
+                } else {
+                    return `面は綺麗に保たれますが、周期がやや短いため(${p}秒)岸寄りの浅瀬で一気に崩れる波になりやすいです。`;
+                }
+            }
+
+            if (speed < 2.5) {
+                return `風の影響がほとんどなくクリーンな面状態です。うねりの高さ(${height.toFixed(2)}m)通りの素直なブレイクになりやすいです。`;
+            }
+
+            if (isOnshore) {
+                if (speed >= 5.0) {
+                    return `オンショアの風により面が乱れ、ジャンク気味でまとまりのない波になりやすいコンディションです。`;
+                } else {
+                    return `弱いオンショアにより表面に少しザワつきが出ますが、展開次第で遊べる状態です。`;
+                }
+            }
+
+            return `横風の影響を受けるコンディションです。風による面の乱れや流れに注意してください。`;
         }
-    }
 
-    if (speed < 2.5) {
-        return `風の影響がほとんどなくクリーンな面状態です。うねりの高さ(${height.toFixed(2)}m)通りの素直なブレイクになりやすいです。`;
-    }
-
-    if (isOnshore) {
-        if (speed >= 5.0) {
-            return `オンショアの風により面が乱れ、ジャンク気味でまとまりのない波になりやすいコンディションです。`;
-        } else {
-            return `弱いオンショアにより表面に少しザワつきが出ますが、展開次第で遊べる状態です。`;
-        }
-    }
-
-    return `横風の影響を受けるコンディションです。風による面の乱れや流れに注意してください。`;
-}
         // 基準新月からの経過日数（月齢）を求める共通関数
         // 基準新月: 2000-01-06 18:14 UTC、朔望月: 29.53058867日
         const SYNODIC_MONTH = 29.53058867;
@@ -642,9 +643,8 @@
         function getTidePhaseInfo(date) {
             const age = getMoonAge(date);
 
-            // 新月・満月付近の位置（0〜14.76を1周期として扱う）
             const halfCycle = SYNODIC_MONTH / 2;
-            const pos = age % halfCycle; // 0=新月or満月に近い
+            const pos = age % halfCycle;
 
             if (pos <= 1.5 || pos >= halfCycle - 1.5) return '大潮';
             if (pos <= 3.5 || pos >= halfCycle - 3.5) return '中潮';
@@ -698,7 +698,6 @@
             const loadingEl = document.getElementById('loading');
             loadingEl.style.display = 'flex';
 
-            // wave_period（波の周期）を追加で取得
             const urlMarine = 'https://marine-api.open-meteo.com/v1/marine?latitude=34.25&longitude=135.08&hourly=wave_height,wave_direction,wave_period,sea_level_height_msl&timezone=Asia%2FTokyo&forecast_days=3';
             const urlWeather = 'https://api.open-meteo.com/v1/forecast?latitude=34.25&longitude=135.08&hourly=wind_speed_10m,wind_direction_10m,weather_code&timezone=Asia%2FTokyo&forecast_days=3';
 
@@ -765,7 +764,6 @@
             const windType = getWindType(globalData.windDirections[index], curWindSpeed);
             const weatherInfo = getWeatherInfo(globalData.weatherCodes[index]);
 
-            // 波の周期（日本語表記）
             const periodVal = globalData.wavePeriods[index] != null ? Math.round(globalData.wavePeriods[index]) : '--';
             document.getElementById('wavePeriodText').textContent = `周期:${periodVal}秒`;
 
@@ -775,7 +773,6 @@
             document.getElementById('currentTide').textContent = curTide !== '--' ? `${curTide}m` : '--';
             document.getElementById('currentWind').textContent = curWindSpeed !== '--' ? `${curWindSpeed}m/s` : '--';
 
-            // 潮位カードのラベルに潮回り（大潮・中潮など）を統合表示 ＋ 月相アイコン
             const tidePhase = getTidePhaseInfo(t);
             document.getElementById('tideLabel').textContent = `潮位/${tidePhase}`;
             document.getElementById('moonIcon').textContent = getMoonPhaseEmoji(t);
@@ -785,11 +782,9 @@
             badgeEl.className = `wind-badge ${windType.class}`;
             fitTextToWidth(badgeEl);
 
-            // 天気カード：テキストとアイコンを分けて表示
             document.getElementById('weatherText').textContent = weatherInfo.text;
             document.getElementById('currentWeather').textContent = weatherInfo.icon;
 
-            // 波向・風向コンパス（磯の浦の沖向きを上＝0度とした相対角度で回転）
             const waveArrow = document.getElementById('waveCompassArrow');
             if (waveArrow) {
                 const waveAngle = toShoreRelativeAngle(globalData.waveDirections[index]);
@@ -800,19 +795,20 @@
                 const windAngle = toShoreRelativeAngle(globalData.windDirections[index]);
                 windArrow.setAttribute('transform', `rotate(${windAngle} 15 15)`);
             }
+
+            // コンディション予想テキストの更新
+            const curWaveVal = globalData.waveHeights[index];
+            const curWindSpeedVal = globalData.windSpeeds[index];
+            const curWindDegVal = globalData.windDirections[index];
+            const curPeriodVal = globalData.wavePeriods[index];
+
+            const adviceText = getConditionAdvice(curWaveVal, curWindSpeedVal, curWindDegVal, curPeriodVal);
+            const adviceEl = document.getElementById('conditionAdviceText');
+            if (adviceEl) {
+                adviceEl.textContent = adviceText;
+            }
         }
-        const curWaveVal = globalData.waveHeights[index];
-const curWindSpeedVal = globalData.windSpeeds[index];
-const curWindDegVal = globalData.windDirections[index];
-const curPeriodVal = globalData.wavePeriods[index];
 
-const adviceText = getConditionAdvice(curWaveVal, curWindSpeedVal, curWindDegVal, curPeriodVal);
-const adviceEl = document.getElementById('conditionAdviceText');
-if (adviceEl) {
-    adviceEl.textContent = adviceText;
-}
-
-        // バッジの文字がカード幅に収まらない場合、1行のまま縮小してフィットさせる
         function fitTextToWidth(el) {
             el.style.transform = 'scale(1)';
             const parent = el.parentElement;
@@ -826,7 +822,6 @@ if (adviceEl) {
             }
         }
 
-        // グラフの指定インデックスのバーが画面中央付近に来るよう、横スクロール位置を合わせる
         function scrollChartToIndex(index) {
             if (!myChart) return;
             const meta = myChart.getDatasetMeta(0);
@@ -836,9 +831,9 @@ if (adviceEl) {
             if (!wrapper) return;
 
             const axisWidth = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--axis-width')) || 42;
-            const barX = meta.data[index].x; // main-chart-container内でのローカルpx位置
+            const barX = meta.data[index].x;
             const visibleWidth = wrapper.clientWidth - axisWidth;
-            let target = barX - visibleWidth / 2; // 表示エリアの中央にバーが来るように
+            let target = barX - visibleWidth / 2;
 
             const maxScroll = wrapper.scrollWidth - wrapper.clientWidth;
             target = Math.max(0, Math.min(target, maxScroll));
@@ -1047,7 +1042,6 @@ if (adviceEl) {
                 const windInfo = getDirectionInfo(windDeg);
                 const wSpeed = windSpeeds && windSpeeds[i] != null ? windSpeeds[i] : '--';
 
-                // 磯の浦の沖向き（南南西・200°）を上とした相対角度で矢印を回転
                 const waveAngle = toShoreRelativeAngle(wDeg);
                 const windAngle = toShoreRelativeAngle(windDeg);
 
@@ -1068,12 +1062,9 @@ if (adviceEl) {
 
         window.onload = fetchData;
 
-        // Service Worker登録（対応ブラウザのみ・ホーム画面に追加できるようにするための最小限の登録）
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js').catch(() => {
-                    // 登録に失敗しても通常のWeb表示には影響しない
-                });
+                navigator.serviceWorker.register('./sw.js').catch(() => {});
             });
         }
 
