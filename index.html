@@ -584,7 +584,48 @@
                 return { text: 'クロス風 面影響あり', class: 'badge-onshore' };
             }
         }
+        function getConditionAdvice(waveHeight, windSpeed, windDeg, period) {
+    if (waveHeight == null || windSpeed == null || period == null) {
+        return "データが不足しているため判定できません。";
+    }
 
+    const speed = Number(windSpeed);
+    const height = Number(waveHeight);
+    const p = Number(period);
+
+    const isOffshore = (windDeg >= 337.5 || windDeg <= 67.5);
+    const isOnshore = (windDeg >= 157.5 && windDeg <= 247.5);
+
+    if (isOffshore && speed >= 8.5 && p <= 6) {
+        return `沖合の波高は${height.toFixed(2)}mありますが、10m/s前後の強力なオフショアと短周期(${p}秒)の影響で波頭が抑え込まれます。岸際では波が潰されて割りづらく、表示数値より実効サイズは大幅にダウンする傾向です。`;
+    }
+
+    if (isOffshore && speed >= 8.5 && p > 6) {
+        return `風が強く波頭が煽られますが、うねりのパワー(${p}秒)があるためインサイド寄りやブレイク位置を選べば遊べる可能性があります。`;
+    }
+
+    if (isOffshore && speed >= 2.5 && speed < 8.5) {
+        if (p >= 8) {
+            return `適度なオフショアで面が整い、グランドスウェル(${p}秒)のパワーもしっかり届く好コンディションが期待できます。`;
+        } else {
+            return `面は綺麗に保たれますが、周期がやや短いため(${p}秒)岸寄りの浅瀬で一気に崩れる波になりやすいです。`;
+        }
+    }
+
+    if (speed < 2.5) {
+        return `風の影響がほとんどなくクリーンな面状態です。うねりの高さ(${height.toFixed(2)}m)通りの素直なブレイクになりやすいです。`;
+    }
+
+    if (isOnshore) {
+        if (speed >= 5.0) {
+            return `オンショアの風により面が乱れ、ジャンク気味でまとまりのない波になりやすいコンディションです。`;
+        } else {
+            return `弱いオンショアにより表面に少しザワつきが出ますが、展開次第で遊べる状態です。`;
+        }
+    }
+
+    return `横風の影響を受けるコンディションです。風による面の乱れや流れに注意してください。`;
+}
         // 基準新月からの経過日数（月齢）を求める共通関数
         // 基準新月: 2000-01-06 18:14 UTC、朔望月: 29.53058867日
         const SYNODIC_MONTH = 29.53058867;
@@ -760,6 +801,16 @@
                 windArrow.setAttribute('transform', `rotate(${windAngle} 15 15)`);
             }
         }
+        const curWaveVal = globalData.waveHeights[index];
+const curWindSpeedVal = globalData.windSpeeds[index];
+const curWindDegVal = globalData.windDirections[index];
+const curPeriodVal = globalData.wavePeriods[index];
+
+const adviceText = getConditionAdvice(curWaveVal, curWindSpeedVal, curWindDegVal, curPeriodVal);
+const adviceEl = document.getElementById('conditionAdviceText');
+if (adviceEl) {
+    adviceEl.textContent = adviceText;
+}
 
         // バッジの文字がカード幅に収まらない場合、1行のまま縮小してフィットさせる
         function fitTextToWidth(el) {
