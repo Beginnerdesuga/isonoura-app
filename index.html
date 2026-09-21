@@ -4,13 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>磯の浦 波・潮・風・天気モニター</title>
-    <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0f172a">
-    <link rel="icon" href="icons/icon-192.png">
-    <link rel="apple-touch-icon" href="icons/icon-192.png">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="磯の浦">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
@@ -72,7 +66,6 @@
         .metric-label { font-size: 0.65rem; color: var(--text-secondary); }
         .metric-value { font-size: 0.95rem; font-weight: 700; margin-top: 2px; }
 
-        /* カード下部テキスト */
         .metric-sub {
             font-size: 0.85rem;
             font-weight: 400;
@@ -86,7 +79,6 @@
         .metric-value.tide { color: var(--accent-tide); }
         .metric-value.wind { color: var(--accent-wind); }
 
-        /* 天気カード */
         .metric-value.weather {
             color: var(--accent-weather);
             font-size: 1.8rem;
@@ -94,7 +86,6 @@
             margin-top: 4px;
         }
 
-        /* 方位コンパス */
         .compass-wrap {
             display: flex;
             justify-content: center;
@@ -102,7 +93,6 @@
         }
         .compass-svg { width: 28px; height: 28px; }
 
-        /* 潮位カードの月相アイコン */
         .moon-icon {
             font-size: 1.1rem;
             margin-top: 3px;
@@ -123,7 +113,6 @@
         .badge-onshore { background-color: #991b1b; color: #fca5a5; }
         .badge-cross { background-color: #854d0e; color: #fef08a; }
 
-        /* ヒント・表示切り替え */
         .scroll-hint {
             display: flex;
             justify-content: space-between;
@@ -144,7 +133,6 @@
         .mark-day { color: #facc15; }
         .mark-night { color: #20252b; }
 
-        /* グラフコンテナ */
         .chart-card {
             background-color: var(--card-bg);
             border: 1px solid var(--border-color);
@@ -199,7 +187,6 @@
             position: relative;
         }
 
-        /* 左軸領域 */
         .sticky-axis-container {
             position: sticky;
             left: 0;
@@ -214,7 +201,6 @@
             flex-direction: column;
         }
 
-        /* 左側凡例ラベル表示エリア */
         .axis-timeline-labels {
             height: 65px;
             margin-top: 6px;
@@ -244,7 +230,6 @@
             position: relative;
         }
 
-        /* タイムライン領域 */
         .timeline-wrapper {
             position: relative;
             border-top: 1px dashed var(--border-color);
@@ -287,7 +272,6 @@
             color: var(--text-primary);
         }
 
-        /* フッター・操作バー */
         .controls {
             display: flex;
             justify-content: space-between;
@@ -426,7 +410,6 @@
         <button class="btn-refresh" onclick="resetToNow()">現在に戻す</button>
     </div>
 
-    <!-- 「現在に戻す」ボタンより下の余白エリア -->
     <div id="conditionAdviceCard" style="background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px; padding: 10px; margin-top: 12px; font-size: 0.8rem; line-height: 1.4;">
         <div style="font-weight: bold; color: var(--accent-wave); margin-bottom: 4px;">💡 コンディション予想</div>
         <div id="conditionAdviceText" style="color: #e2e8f0;">データ読み込み中...</div>
@@ -439,10 +422,8 @@
         let selectedIndex = 0;
         let nowIndex = 0;
 
-        // 磯の浦の沖向き（浜から見た海の方角）：南南西 ≒ 200度（ざっくり基準）
         const SHORE_NORMAL_DEG = 200;
 
-        // 絶対方位（北基準）を、磯の浦の沖向きを0度とした相対角度に変換する
         function toShoreRelativeAngle(absoluteDeg) {
             if (absoluteDeg == null) return 0;
             let relative = absoluteDeg - SHORE_NORMAL_DEG;
@@ -450,7 +431,6 @@
             return relative;
         }
 
-        // 昼夜の境界（固定：5時〜18時を昼間とする）
         const DAY_START_HOUR = 5;
         const DAY_END_HOUR = 18;
 
@@ -458,7 +438,6 @@
             return hour >= DAY_START_HOUR && hour <= DAY_END_HOUR;
         }
 
-        // Chart.jsプラグイン：グラフ背景に昼夜の帯を描画
         const dayNightBgPlugin = {
             id: 'dayNightBg',
             beforeDatasetsDraw: (chart) => {
@@ -487,7 +466,6 @@
 
         Chart.register(dayNightBgPlugin);
 
-        // Chart.js プラグイン：選択線および下部タイムラインの同期
         const timeLineLinesPlugin = {
             id: 'timeLineLines',
             afterDraw: (chart) => {
@@ -627,8 +605,6 @@
             return `横風の影響を受けるコンディションです。風による面の乱れや流れに注意してください。`;
         }
 
-        // 基準新月からの経過日数（月齢）を求める共通関数
-        // 基準新月: 2000-01-06 18:14 UTC、朔望月: 29.53058867日
         const SYNODIC_MONTH = 29.53058867;
 
         function getMoonAge(date) {
@@ -639,7 +615,6 @@
             return age;
         }
 
-        // 月齢から潮回り（大潮・中潮・小潮・長潮・若潮）を簡易推定する関数
         function getTidePhaseInfo(date) {
             const age = getMoonAge(date);
 
@@ -653,7 +628,6 @@
             return '若潮';
         }
 
-        // 月齢から月相アイコン（絵文字）を求める関数
         function getMoonPhaseEmoji(date) {
             const age = getMoonAge(date);
             const phases = ['🌑', '🌒', '🌓', '🌔', '🌕', '🌖', '🌗', '🌘'];
@@ -661,7 +635,6 @@
             return phases[idx];
         }
 
-        // 直近の満潮・干潮時刻を求める関数
         function getTideExtremes(index) {
             if (!globalData || !globalData.seaLevels || globalData.seaLevels.length === 0) {
                 return '満-- 干--';
@@ -696,14 +669,14 @@
 
         async function fetchData() {
             const loadingEl = document.getElementById('loading');
-            loadingEl.style.display = 'flex';
+            if (loadingEl) loadingEl.style.display = 'flex';
 
             const urlMarine = 'https://marine-api.open-meteo.com/v1/marine?latitude=34.25&longitude=135.08&hourly=wave_height,wave_direction,wave_period,sea_level_height_msl&timezone=Asia%2FTokyo&forecast_days=3';
             const urlWeather = 'https://api.open-meteo.com/v1/forecast?latitude=34.25&longitude=135.08&hourly=wind_speed_10m,wind_direction_10m,weather_code&timezone=Asia%2FTokyo&forecast_days=3';
 
             try {
                 const [resMarine, resWeather] = await Promise.all([fetch(urlMarine), fetch(urlWeather)]);
-                if (!resMarine.ok || !resWeather.ok) throw new Error('データ取得に失敗しました');
+                if (!resMarine.ok || !resWeather.ok) throw new Error('API通信に失敗しました。');
 
                 const dataMarine = await resMarine.json();
                 const dataWeather = await resWeather.json();
@@ -735,9 +708,10 @@
 
                 document.getElementById('lastUpdate').textContent = '更新: ' + now.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
             } catch (error) {
-                alert('エラー: ' + error.message);
+                console.error('通信エラー詳細:', error);
+                alert('データ取得エラー: ' + error.message + '\n画面を再読み込みするか時間をお試しください。');
             } finally {
-                loadingEl.style.display = 'none';
+                if (loadingEl) loadingEl.style.display = 'none';
             }
         }
 
@@ -796,7 +770,6 @@
                 windArrow.setAttribute('transform', `rotate(${windAngle} 15 15)`);
             }
 
-            // コンディション予想テキストの更新
             const curWaveVal = globalData.waveHeights[index];
             const curWindSpeedVal = globalData.windSpeeds[index];
             const curWindDegVal = globalData.windDirections[index];
@@ -1061,12 +1034,6 @@
         }
 
         window.onload = fetchData;
-
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js').catch(() => {});
-            });
-        }
 
         window.addEventListener('resize', () => {
             const badgeEl = document.getElementById('windTypeBadge');
