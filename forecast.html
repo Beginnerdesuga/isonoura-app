@@ -16,6 +16,8 @@ body{background:linear-gradient(180deg,var(--bg1),var(--bg2));color:var(--tx);ma
 .legend{padding:0 14px 10px;font-size:.66rem;color:var(--tx2)}
 .scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:6px;scrollbar-width:none}
 .scroll::-webkit-scrollbar{display:none}
+@media (pointer:fine){.scroll{scrollbar-width:thin;scrollbar-color:#38bdf8 transparent;cursor:grab}.scroll::-webkit-scrollbar{display:block;height:8px}.scroll::-webkit-scrollbar-thumb{background:#38bdf8;border-radius:4px}}
+.scroll.drag{cursor:grabbing;user-select:none}
 .wrap{position:relative}
 .days{display:flex;height:28px}
 .day{flex:none;border-left:2px solid var(--line)}
@@ -161,7 +163,10 @@ function tideBlock(n,W){
   if(!pts.length) return `<div class="strip tide" style="width:${W}px">${head}<div class="tnote">この期間の潮位データがありません</div></div>`;
   const H=104,top=30,bot=26,span=Math.max(1,mx-mn);
   const X=k=>k/STEP_H*COL+COL/2, Y=v=>top+(1-(v-mn)/span)*(H-top-bot);
-  let d='';pts.forEach(([k,v],i)=>{const x=X(k),y=Y(v);if(!i){d+=`M${x},${y}`;return;}const [pk,pv]=pts[i-1];const px=X(pk),py=Y(pv),cx=(px+x)/2;d+=` C${cx},${py} ${cx},${y} ${x},${y}`;});
+  let d='';const P=pts.map(([k,v])=>[X(k),Y(v)]);
+  P.forEach((p,i)=>{if(!i){d+=`M${p[0]},${p[1]}`;return;}
+    const p0=P[i-2]||P[i-1],p1=P[i-1],p2=p,p3=P[i+1]||p;
+    d+=` C${p1[0]+(p2[0]-p0[0])/6},${p1[1]+(p2[1]-p0[1])/6} ${p2[0]-(p3[0]-p1[0])/6},${p2[1]-(p3[1]-p1[1])/6} ${p2[0]},${p2[1]}`;});
   const area=d+` L${X(pts[pts.length-1][0])},${H} L${X(pts[0][0])},${H} Z`;
   const lbls=marks.filter(m=>m.k<totalH).map(m=>{
     const x=X(m.k),y=Y(m.cm),up=m.kind==='hi';
@@ -215,6 +220,14 @@ document.getElementById('rangeSeg').addEventListener('click',e=>{
   document.querySelectorAll('#rangeSeg button').forEach(x=>x.classList.toggle('on',x===b));
   if(state.times.length){render();goNow();}
 });
+const scEl=document.getElementById('scroll');
+scEl.addEventListener('wheel',e=>{
+  if(Math.abs(e.deltaY)>Math.abs(e.deltaX)&&scEl.scrollWidth>scEl.clientWidth){e.preventDefault();scEl.scrollLeft+=e.deltaY+e.deltaX;}
+},{passive:false});
+let dragX=null,dragL=0;
+scEl.addEventListener('pointerdown',e=>{if(e.pointerType!=='mouse')return;dragX=e.clientX;dragL=scEl.scrollLeft;scEl.classList.add('drag');});
+window.addEventListener('pointermove',e=>{if(dragX!=null)scEl.scrollLeft=dragL-(e.clientX-dragX);});
+window.addEventListener('pointerup',()=>{dragX=null;scEl.classList.remove('drag');});
 window.onload=fetchAll;
 </script>
 </body>
