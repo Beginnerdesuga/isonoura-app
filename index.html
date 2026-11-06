@@ -306,7 +306,13 @@
             font-weight: 600;
             z-index: 20;
         }
-    </style>
+    
+/* ===== 共通タブバー ===== */
+body{padding-bottom:92px!important}
+.tabbar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(14px + env(safe-area-inset-bottom));width:calc(100% - 28px);max-width:400px;display:flex;gap:4px;padding:5px;background:rgba(15,36,66,.82);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.14);border-radius:999px;box-shadow:0 8px 24px rgba(0,0,0,.4);z-index:100}
+.tabbar a{flex:1;text-align:center;text-decoration:none;color:#b6c8dc;font-size:.78rem;font-weight:600;letter-spacing:.04em;padding:10px 4px;border-radius:999px;transition:background .2s,color .2s;white-space:nowrap;font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Segoe UI",Roboto,Arial,sans-serif}
+.tabbar a.on{background:#7dd3fc;color:#07304f;font-weight:700}
+</style>
 </head>
 <body>
 
@@ -1058,5 +1064,14 @@
             if (badgeEl) fitTextToWidth(badgeEl);
         });
     </script>
+<nav class="tabbar" id="tabbar">
+  <a href="index.html">磯の浦</a>
+  <a href="forecast.html">磯・産</a>
+  <a href="map.html">WAVE MAP</a>
+</nav>
+<script>
+(function(){var p=location.pathname.split('/').pop()||'index.html';
+document.querySelectorAll('#tabbar a').forEach(function(a){if(a.getAttribute('href')===p)a.classList.add('on');});})();
+</script>
 </body>
 </html>
