@@ -5,49 +5,45 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>磯ノ浦・産湯 波予報</title>
 <style>
-:root{--bg1:#0a1b33;--bg2:#12365c;--strip:rgba(255,255,255,.07);--line:rgba(255,255,255,.12);--tx:#f8fafc;--tx2:#9fb4cc;--aqua:#7dd3fc;--yel:#fde68a;--pink:#fda4af;--col:64px}
+:root{--bg1:#0a1b33;--bg2:#12365c;--strip:rgba(255,255,255,.07);--line:rgba(255,255,255,.12);--tx:#f8fafc;--tx2:#9fb4cc;--aqua:#7dd3fc;--yel:#fde68a;--pink:#fda4af;--col:48px}
 *{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,"Hiragino Maru Gothic ProN","Hiragino Sans","Segoe UI",Roboto,Arial,sans-serif}
-body{background:linear-gradient(180deg,var(--bg1),var(--bg2));color:var(--tx);max-width:600px;margin:0 auto;padding:14px 0 24px;min-height:100vh}
-.top{display:flex;justify-content:space-between;align-items:center;padding:0 14px 4px}
-.top h1{font-size:1rem;font-weight:500;letter-spacing:.04em}
-.seg{background:var(--strip);border-radius:999px;padding:3px;display:flex}
-.seg button{background:none;color:var(--tx2);border:none;padding:4px 12px;font-size:.75rem;border-radius:999px;cursor:pointer}
-.seg button.on{background:var(--aqua);color:#07304f;font-weight:500}
-.legend{padding:0 14px 10px;font-size:.66rem;color:var(--tx2)}
-.scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:6px;scrollbar-width:none}
+body{background:linear-gradient(180deg,var(--bg1),var(--bg2));color:var(--tx);max-width:600px;margin:0 auto;padding:10px 0 24px;min-height:100vh}
+.top{display:flex;justify-content:space-between;align-items:center;padding:0 14px 8px}
+.dt{font-size:.8rem;font-weight:400;color:var(--aqua);letter-spacing:.03em}
+.scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:4px;scrollbar-width:none}
 .scroll::-webkit-scrollbar{display:none}
 @media (pointer:fine){.scroll{scrollbar-width:thin;scrollbar-color:#38bdf8 transparent;cursor:grab}.scroll::-webkit-scrollbar{display:block;height:8px}.scroll::-webkit-scrollbar-thumb{background:#38bdf8;border-radius:4px}}
 .scroll.drag{cursor:grabbing;user-select:none}
 .wrap{position:relative}
-.days{display:flex;height:28px}
-.day{flex:none;border-left:2px solid var(--line)}
-.day span{position:sticky;left:70px;display:inline-block;font-size:.72rem;font-weight:400;color:var(--aqua);padding:4px 0 0 6px}
-.day em{font-style:normal;color:var(--tx2);margin-left:4px}
-.nowtag{position:absolute;top:3px;transform:translateX(-50%);background:#fb7185;color:#fff;font-size:.62rem;font-weight:500;border-radius:999px;padding:1px 8px;z-index:5}
-.strip{background:var(--strip);border-radius:18px;margin:0 8px 12px 0;padding-bottom:6px}
-.lab{height:30px;padding:6px 0 0 10px}
+.hrs{display:flex;margin-bottom:6px}
+.th{width:var(--col);flex:none;text-align:center;font-size:.72rem;line-height:20px;color:#e2e8f0}
+.th.day0{border-left:2px solid var(--line)}
+.th.now{background:rgba(251,113,133,.5);color:#fff;border-radius:999px}
+.strip{background:var(--strip);border-radius:16px;margin:0 8px 8px 0;padding-bottom:4px}
+.lab{height:24px;padding:6px 0 0 10px}
 .chip{position:sticky;left:10px;display:inline-flex;gap:8px;align-items:baseline;background:rgba(10,27,51,.82);border-radius:999px;padding:2px 12px;backdrop-filter:blur(4px);z-index:6}
-.chip b{font-size:.74rem;font-weight:400}.chip small{font-size:.72rem;color:var(--tx2)}
+.chip b{font-size:.72rem;font-weight:400}.chip small{font-size:.7rem;color:var(--tx2)}
 .cols{display:flex}
 .c{width:var(--col);flex:none;text-align:center;position:relative}
 .c.day0{border-left:2px solid var(--line)}
 .c.night{background:rgba(5,15,30,.28)}
 .c.now{background:rgba(251,113,133,.16);box-shadow:inset 0 0 0 1.5px rgba(251,113,133,.8);border-radius:12px}
-.wx{height:30px;font-size:1.3rem;line-height:30px}
-.wa{height:20px;line-height:20px;font-size:1rem}.wa span{display:inline-block}
-.wt{height:16px;font-size:.64rem;white-space:nowrap;font-weight:400;letter-spacing:-.3px}
-.wv{height:122px;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;padding-bottom:3px}
-.wv .num{font-size:.76rem;font-weight:400;margin-bottom:3px}
-.wv .bx{width:34px;border-radius:10px 10px 6px 6px;background:linear-gradient(180deg,#bae6fd,#38bdf8);min-height:10px;box-shadow:0 2px 8px rgba(56,189,248,.35)}
-.tm{height:20px;font-size:.78rem;line-height:20px;color:#e2e8f0;border-top:1px solid var(--line);margin:2px 8px 0}
-.sa{height:20px;line-height:20px;font-size:.9rem;color:var(--yel);font-weight:400}.sa span{display:inline-block}
+.wx{height:26px;font-size:1.1rem;line-height:26px}
+.wa{height:16px;line-height:16px;font-size:.9rem}.wa span{display:inline-block}
+.wd{height:13px;line-height:13px;font-size:.58rem;white-space:nowrap;font-weight:400;letter-spacing:-.2px}
+.ws{height:15px;line-height:15px;font-size:.66rem;font-weight:400}
+.wv{height:76px;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;padding-bottom:3px}
+.wv .num{font-size:.74rem;font-weight:400;margin-bottom:2px}
+.wv .bx{border-radius:9px 9px 5px 5px;background:linear-gradient(180deg,#bae6fd,#38bdf8);min-height:8px;box-shadow:0 2px 8px rgba(56,189,248,.35)}
+.sa{height:18px;line-height:18px;font-size:.9rem;color:var(--yel);font-weight:400}.sa span{display:inline-block}
 .sp{height:14px;line-height:14px;font-size:.6rem;color:var(--yel);font-weight:400}
 .g{color:#86efac}.m{color:#fde68a}.r{color:#fda4af}
 .tide svg{display:block}
-.tnote{font-size:.7rem;color:var(--tx2);padding:14px 16px}
-.foot{display:flex;justify-content:space-between;align-items:center;padding:4px 14px}
-.btn{background:var(--aqua);color:#07304f;border:none;border-radius:999px;padding:7px 16px;font-size:.8rem;font-weight:700;cursor:pointer}
-.lu{font-size:.72rem;color:var(--tx2)}
+.tnote{font-size:.7rem;color:var(--tx2);padding:10px 16px}
+.legend{padding:2px 14px 0;font-size:.62rem;color:#7c93ad}
+.foot{display:flex;justify-content:space-between;align-items:center;padding:6px 14px 0}
+.btn{background:var(--aqua);color:#07304f;border:none;border-radius:999px;padding:6px 14px;font-size:.76rem;font-weight:500;cursor:pointer}
+.lu{font-size:.7rem;color:var(--tx2)}
 .note{font-size:.62rem;color:#7c93ad;padding:8px 14px;line-height:1.6}
 #loading{position:fixed;inset:0;background:rgba(10,27,51,.85);display:flex;justify-content:center;align-items:center;font-weight:600;z-index:50}
 
@@ -59,10 +55,10 @@ body{padding-bottom:92px!important}
 </style>
 </head>
 <body>
-<div class="top"><h1>🌊 波予報</h1>
-  <div class="seg" id="rangeSeg"><button data-d="3" class="on">3日</button><button data-d="5">5日</button><button data-d="7">7日</button></div></div>
-<div class="legend">波高(m)　黄矢印＝うねりの向き（下に周期）　白矢印＝風の向き</div>
+<div class="top"><span class="dt" id="dateLbl">--</span>
+</div>
 <div class="scroll" id="scroll"><div class="wrap" id="wrap"></div></div>
+<div class="legend">黄矢印 うねりの向きと周期　白矢印 風の向き　波高はm</div>
 <div class="foot"><span class="lu" id="lastUpdate">更新: --</span><button class="btn" onclick="goNow()">いまに戻る</button></div>
 <p class="note">※ 波・水温は数km格子のモデル値（沖の目安）。潮位は気象庁の和歌山の潮位表（基準面からのcm）。産湯の座標・沖向きは仮設定です。</p>
 <div id="loading">取得中...</div>
@@ -73,10 +69,12 @@ const SPOTS = [
   { id:'iso', name:'磯ノ浦', lat:34.25, lon:135.08, shoreDeg:200 },
   { id:'ubu', name:'産湯',   lat:33.90, lon:135.05, shoreDeg:270 },
 ];
-const STEP_H=3, FETCH_DAYS=7, COL=64;
-let showDays=3;
+const STEP_H=3, FETCH_DAYS=7, PER_DAY=24/STEP_H, BAR_MAX=56;
+let COL=48;
+const showDays=FETCH_DAYS;
 const ON_ANGLE=45, OFF_ANGLE=135;
 const state={now:0,times:[],data:{},tide:null};
+const scEl=document.getElementById('scroll');
 
 const angDiff=(a,b)=>{let d=Math.abs(a-b)%360;return d>180?360-d:d;};
 const num=v=>v==null?null:Number(v);
@@ -146,15 +144,25 @@ async function fetchAll(){
 }
 
 // ===== 描画 =====
+function calcCol(){
+  const w=scEl.clientWidth||Math.min(window.innerWidth,600);
+  COL=Math.max(38,Math.min(64,Math.floor((w-8)/PER_DAY)));
+  document.documentElement.style.setProperty('--col',COL+'px');
+}
 function visibleCount(){
   const st=new Date(state.times[0]);st.setHours(0,0,0,0);
   const end=st.getTime()+showDays*86400000;
   let n=0;for(const t of state.times){if(new Date(t).getTime()<end)n++;else break;}
   return Math.max(n,1);
 }
+function hoursRow(n,W){
+  let c='';
+  for(let i=0;i<n;i++){const h=new Date(state.times[i]).getHours();
+    c+=`<div class="th${h===0?' day0':''}${i===state.now?' now':''}">${h}時</div>`;}
+  return `<div class="hrs" style="width:${W}px">${c}</div>`;
+}
 function tideBlock(n,W){
   const tide=state.tide;
-  const t0=new Date(state.times[state.now]);
   const head=`<div class="lab"><span class="chip"><b>和歌山潮位</b></span></div>`;
   if(!tide||!tide.days) return `<div class="strip tide" style="width:${W}px">${head}<div class="tnote">潮位データ準備中（GitHubのActionsで潮位の取得を実行すると表示されます）</div></div>`;
   const start=new Date(state.times[0]);start.setHours(0,0,0,0);
@@ -168,7 +176,7 @@ function tideBlock(n,W){
     add(rec.hi,'hi');add(rec.lo,'lo');
   }
   if(!pts.length) return `<div class="strip tide" style="width:${W}px">${head}<div class="tnote">この期間の潮位データがありません</div></div>`;
-  const H=104,top=30,bot=26,span=Math.max(1,mx-mn);
+  const H=76,top=22,bot=20,span=Math.max(1,mx-mn);
   const X=k=>k/STEP_H*COL+COL/2, Y=v=>top+(1-(v-mn)/span)*(H-top-bot);
   let d='';const P=pts.map(([k,v])=>[X(k),Y(v)]);
   P.forEach((p,i)=>{if(!i){d+=`M${p[0]},${p[1]}`;return;}
@@ -177,57 +185,54 @@ function tideBlock(n,W){
   const area=d+` L${X(pts[pts.length-1][0])},${H} L${X(pts[0][0])},${H} Z`;
   const lbls=marks.filter(m=>m.k<totalH).map(m=>{
     const x=X(m.k),y=Y(m.cm),up=m.kind==='hi';
-    return `<circle cx="${x}" cy="${y}" r="4" fill="${up?'#fde68a':'#fff'}"/><text x="${x}" y="${up?y-8:y+16}" text-anchor="middle" font-size="10" fill="${up?'#fde68a':'#e2e8f0'}" font-weight="400">${up?'満':'干'}${m.tm}・${m.cm}</text>`;}).join('');
+    return `<circle cx="${x}" cy="${y}" r="3.5" fill="${up?'#fde68a':'#fff'}"/><text x="${x}" y="${up?y-7:y+14}" text-anchor="middle" font-size="10" fill="${up?'#fde68a':'#e2e8f0'}" font-weight="400">${up?'満':'干'}${m.tm}・${m.cm}</text>`;}).join('');
   return `<div class="strip tide" style="width:${W}px">${head}<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
     <defs><linearGradient id="tg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#38bdf8" stop-opacity=".45"/><stop offset="1" stop-color="#38bdf8" stop-opacity="0"/></linearGradient></defs>
-    <path d="${area}" fill="url(#tg)"/><path d="${d}" fill="none" stroke="#7dd3fc" stroke-width="2.6" stroke-linecap="round"/>${lbls}</svg></div>`;
+    <path d="${area}" fill="url(#tg)"/><path d="${d}" fill="none" stroke="#7dd3fc" stroke-width="2.4" stroke-linecap="round"/>${lbls}</svg></div>`;
 }
 function spotBlock(s,n,maxV,W){
   const d=state.data[s.id], sst=d.sst[state.now]!=null?`水温 ${f1(d.sst[state.now])}℃`:'';
+  const bw=Math.round(COL*0.58);
   let cols='';
   for(let i=0;i<n;i++){
     const t=new Date(state.times[i]),h=t.getHours(),tot=d.wave[i];
-    const bh=tot!=null?Math.min(96,Math.max(10,Math.round(tot/maxV*96))):0;
+    const bh=tot!=null?Math.min(BAR_MAX,Math.max(8,Math.round(tot/maxV*BAR_MAX))):0;
     const wA=travel(d.wdir[i]),sA=travel(d.swDir[i]);
     const wc=windClass(d.wdir[i],d.wspd[i],s.shoreDeg);
+    const ok=d.wspd[i]!=null;
     cols+=`<div class="c${h===0?' day0':''}${isDay(h)?'':' night'}${i===state.now?' now':''}">
       <div class="wx">${weatherIcon(d.wcode[i])}</div>
       <div class="wa">${wA==null?'':`<span style="transform:rotate(${wA}deg)">↑</span>`}</div>
-      <div class="wt ${wc}">${d.wspd[i]!=null?`${dirName(d.wdir[i])} ${Math.round(d.wspd[i])}m`:'--'}</div>
-      <div class="wv"><div class="num">${f1(tot)}</div><div class="bx" style="height:${bh}px"></div></div>
-      <div class="tm">${h}時</div>
+      <div class="wd ${wc}">${ok?dirName(d.wdir[i]):'--'}</div>
+      <div class="ws ${wc}">${ok?Math.round(d.wspd[i])+'m':''}</div>
+      <div class="wv"><div class="num">${f1(tot)}</div><div class="bx" style="width:${bw}px;height:${bh}px"></div></div>
       <div class="sa">${sA==null?'':`<span style="transform:rotate(${sA}deg)">↑</span>`}</div>
       <div class="sp">${d.swPer[i]!=null?Math.round(d.swPer[i])+'s':''}</div></div>`;
   }
   return `<div class="strip" style="width:${W}px"><div class="lab"><span class="chip"><b>${s.name}</b><small>${sst}</small></span></div><div class="cols">${cols}</div></div>`;
 }
 function render(){
+  calcCol();
   const n=visibleCount(),W=n*COL;
   const maxV=Math.max(1.5,...SPOTS.flatMap(s=>state.data[s.id].wave.slice(0,n).map(v=>v||0)));
-  let days='',i=0;
-  while(i<n){
-    const t=new Date(state.times[i]);let cnt=0;
-    while(i+cnt<n&&new Date(state.times[i+cnt]).getDate()===t.getDate())cnt++;
-    days+=`<div class="day" style="width:${cnt*COL}px"><span>${t.getMonth()+1}/${t.getDate()}（${'日月火水木金土'[t.getDay()]}）</span></div>`;
-    i+=cnt;
-  }
-  const nowX=state.now<n?state.now*COL+COL/2:-100;
   document.getElementById('wrap').style.width=(W+8)+'px';
   document.getElementById('wrap').innerHTML=
-    `<div class="nowrow" style="position:relative;height:22px;width:${W}px"><div class="nowtag" style="left:${nowX}px">いま</div></div><div class="days" style="width:${W}px">${days}</div>`+
-    tideBlock(n,W)+SPOTS.map(s=>spotBlock(s,n,maxV,W)).join('');
+    hoursRow(n,W)+tideBlock(n,W)+SPOTS.map(s=>spotBlock(s,n,maxV,W)).join('');
+}
+function updDate(){
+  if(!state.times.length)return;
+  const i=Math.min(state.times.length-1,Math.max(0,Math.round(scEl.scrollLeft/COL)));
+  const t=new Date(state.times[i]);
+  document.getElementById('dateLbl').textContent=`${t.getMonth()+1}/${t.getDate()} ${'日月火水木金土'[t.getDay()]}`;
 }
 function goNow(){
-  const sc=document.getElementById('scroll');
-  sc.scrollLeft=Math.max(0,state.now*COL+COL/2-sc.clientWidth/2);
+  const dayStart=Math.floor(state.now/PER_DAY)*PER_DAY;
+  scEl.scrollLeft=dayStart*COL;
+  updDate();
 }
-document.getElementById('rangeSeg').addEventListener('click',e=>{
-  const b=e.target.closest('button');if(!b)return;
-  showDays=+b.dataset.d;
-  document.querySelectorAll('#rangeSeg button').forEach(x=>x.classList.toggle('on',x===b));
-  if(state.times.length){render();goNow();}
-});
-const scEl=document.getElementById('scroll');
+scEl.addEventListener('scroll',updDate,{passive:true});
+let rzT=null;
+window.addEventListener('resize',()=>{clearTimeout(rzT);rzT=setTimeout(()=>{if(state.times.length){const k=Math.round(scEl.scrollLeft/COL);render();scEl.scrollLeft=k*COL;updDate();}},200);});
 scEl.addEventListener('wheel',e=>{
   if(Math.abs(e.deltaY)>Math.abs(e.deltaX)&&scEl.scrollWidth>scEl.clientWidth){e.preventDefault();scEl.scrollLeft+=e.deltaY+e.deltaX;}
 },{passive:false});
