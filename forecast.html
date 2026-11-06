@@ -22,7 +22,7 @@ body{background:linear-gradient(180deg,var(--bg1),var(--bg2));color:var(--tx);ma
 .days{display:flex;height:28px}
 .day{flex:none;border-left:2px solid var(--line)}
 .day span{position:sticky;left:70px;display:inline-block;font-size:.78rem;font-weight:700;color:var(--aqua);padding:4px 0 0 6px}
-.nowtag{position:absolute;top:2px;transform:translateX(-50%);background:#fb7185;color:#fff;font-size:.62rem;font-weight:700;border-radius:999px;padding:1px 8px;z-index:5}
+.nowtag{position:absolute;top:3px;transform:translateX(-50%);background:#fb7185;color:#fff;font-size:.62rem;font-weight:700;border-radius:999px;padding:1px 8px;z-index:5}
 .strip{background:var(--strip);border-radius:18px;margin:0 8px 12px 0;padding-bottom:6px}
 .lab{height:30px;padding:6px 0 0 10px}
 .chip{position:sticky;left:10px;display:inline-flex;gap:8px;align-items:baseline;background:rgba(10,27,51,.82);border-radius:999px;padding:2px 12px;backdrop-filter:blur(4px);z-index:6}
@@ -213,7 +213,7 @@ function render(){
   const nowX=state.now<n?state.now*COL+COL/2:-100;
   document.getElementById('wrap').style.width=(W+8)+'px';
   document.getElementById('wrap').innerHTML=
-    `<div class="days" style="position:relative;width:${W}px">${days}<div class="nowtag" style="left:${nowX}px">いま</div></div>`+
+    `<div class="nowrow" style="position:relative;height:22px;width:${W}px"><div class="nowtag" style="left:${nowX}px">いま</div></div><div class="days" style="width:${W}px">${days}</div>`+
     tideBlock(n,W)+SPOTS.map(s=>spotBlock(s,n,maxV,W)).join('');
 }
 function goNow(){
