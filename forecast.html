@@ -20,7 +20,7 @@ body{background:linear-gradient(180deg,var(--bg1),var(--bg2));color:var(--tx);ma
 .th.day0{border-left:2px solid var(--line)}
 .th.now{background:rgba(251,113,133,.5);color:#fff;border-radius:999px}
 .strip{background:var(--strip);border-radius:16px;margin:0 8px 8px 0;padding-bottom:4px}
-.lab{height:24px;padding:6px 0 0 10px}
+.lab{height:34px;padding:6px 0 0 10px}
 .chip{position:sticky;left:10px;display:inline-flex;gap:8px;align-items:baseline;background:rgba(10,27,51,.82);border-radius:999px;padding:2px 12px;backdrop-filter:blur(4px);z-index:6}
 .chip b{font-size:.72rem;font-weight:400}.chip small{font-size:.7rem;color:var(--tx2)}
 .cols{display:flex}
@@ -32,7 +32,7 @@ body{background:linear-gradient(180deg,var(--bg1),var(--bg2));color:var(--tx);ma
 .wa{height:16px;line-height:16px;font-size:.9rem}.wa span{display:inline-block}
 .wd{height:13px;line-height:13px;font-size:.58rem;white-space:nowrap;font-weight:400;letter-spacing:-.2px}
 .ws{height:15px;line-height:15px;font-size:.66rem;font-weight:400}
-.wv{height:76px;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;padding-bottom:3px}
+.wv{height:84px;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;padding-bottom:3px}
 .wv .num{font-size:.74rem;font-weight:400;margin-bottom:2px}
 .wv .bx{border-radius:9px 9px 5px 5px;background:linear-gradient(180deg,#bae6fd,#38bdf8);min-height:8px;box-shadow:0 2px 8px rgba(56,189,248,.35)}
 .sa{height:18px;line-height:18px;font-size:.9rem;color:var(--yel);font-weight:400}.sa span{display:inline-block}
@@ -60,7 +60,7 @@ body{padding-bottom:92px!important}
 <div class="scroll" id="scroll"><div class="wrap" id="wrap"></div></div>
 <div class="legend">黄矢印 うねりの向きと周期　白矢印 風の向き　波高はm</div>
 <div class="foot"><span class="lu" id="lastUpdate">更新: --</span><button class="btn" onclick="goNow()">いまに戻る</button></div>
-<p class="note">※ 波・水温は数km格子のモデル値（沖の目安）。潮位は気象庁の和歌山の潮位表（基準面からのcm）。産湯の座標・沖向きは仮設定です。</p>
+<p class="note">※ 波・水温は数km格子のモデル値（沖の目安）。潮位は気象庁の和歌山の潮位表。潮回りは月の満ち欠けからの計算で、公式と1日ずれることがあります。産湯の座標・沖向きは仮設定です。</p>
 <div id="loading">取得中...</div>
 
 <script>
@@ -69,7 +69,7 @@ const SPOTS = [
   { id:'iso', name:'磯ノ浦', lat:34.25, lon:135.08, shoreDeg:200 },
   { id:'ubu', name:'産湯',   lat:33.90, lon:135.05, shoreDeg:270 },
 ];
-const STEP_H=3, FETCH_DAYS=7, PER_DAY=24/STEP_H, BAR_MAX=56;
+const STEP_H=3, FETCH_DAYS=7, PER_DAY=24/STEP_H, BAR_MAX=64;
 let COL=48;
 const showDays=FETCH_DAYS;
 const ON_ANGLE=45, OFF_ANGLE=135;
@@ -163,7 +163,7 @@ function hoursRow(n,W){
 }
 function tideBlock(n,W){
   const tide=state.tide;
-  const head=`<div class="lab"><span class="chip"><b>和歌山潮位</b></span></div>`;
+  const head=`<div class="lab"><span class="chip"><b>和歌山潮位</b><small class="tph"></small></span></div>`;
   if(!tide||!tide.days) return `<div class="strip tide" style="width:${W}px">${head}<div class="tnote">潮位データ準備中（GitHubのActionsで潮位の取得を実行すると表示されます）</div></div>`;
   const start=new Date(state.times[0]);start.setHours(0,0,0,0);
   const totalH=n*STEP_H;
@@ -185,7 +185,7 @@ function tideBlock(n,W){
   const area=d+` L${X(pts[pts.length-1][0])},${H} L${X(pts[0][0])},${H} Z`;
   const lbls=marks.filter(m=>m.k<totalH).map(m=>{
     const x=X(m.k),y=Y(m.cm),up=m.kind==='hi';
-    return `<circle cx="${x}" cy="${y}" r="3.5" fill="${up?'#fde68a':'#fff'}"/><text x="${x}" y="${up?y-7:y+14}" text-anchor="middle" font-size="10" fill="${up?'#fde68a':'#e2e8f0'}" font-weight="400">${up?'満':'干'}${m.tm}・${m.cm}</text>`;}).join('');
+    return `<circle cx="${x}" cy="${y}" r="3.5" fill="${up?'#fde68a':'#fff'}"/><text x="${x}" y="${up?y-7:y+14}" text-anchor="middle" font-size="10" fill="${up?'#fde68a':'#e2e8f0'}" font-weight="400">${up?'満':'干'}${m.tm}</text>`;}).join('');
   return `<div class="strip tide" style="width:${W}px">${head}<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
     <defs><linearGradient id="tg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#38bdf8" stop-opacity=".45"/><stop offset="1" stop-color="#38bdf8" stop-opacity="0"/></linearGradient></defs>
     <path d="${area}" fill="url(#tg)"/><path d="${d}" fill="none" stroke="#7dd3fc" stroke-width="2.4" stroke-linecap="round"/>${lbls}</svg></div>`;
@@ -224,6 +224,8 @@ function updDate(){
   const i=Math.min(state.times.length-1,Math.max(0,Math.round(scEl.scrollLeft/COL)));
   const t=new Date(state.times[i]);
   document.getElementById('dateLbl').textContent=`${t.getMonth()+1}/${t.getDate()} ${'日月火水木金土'[t.getDay()]}`;
+  const ph=tidePhase(new Date(t.getFullYear(),t.getMonth(),t.getDate(),12));
+  document.querySelectorAll('.tph').forEach(e=>e.textContent=ph);
 }
 function goNow(){
   const dayStart=Math.floor(state.now/PER_DAY)*PER_DAY;
