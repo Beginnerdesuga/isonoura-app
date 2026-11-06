@@ -312,6 +312,34 @@ body{padding-bottom:92px!important}
 .tabbar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(14px + env(safe-area-inset-bottom));width:calc(100% - 28px);max-width:400px;display:flex;gap:4px;padding:5px;background:rgba(15,36,66,.82);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.14);border-radius:999px;box-shadow:0 8px 24px rgba(0,0,0,.4);z-index:100}
 .tabbar a{flex:1;text-align:center;text-decoration:none;color:#b6c8dc;font-size:.78rem;font-weight:600;letter-spacing:.04em;padding:10px 4px;border-radius:999px;transition:background .2s,color .2s;white-space:nowrap;font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Segoe UI",Roboto,Arial,sans-serif}
 .tabbar a.on{background:#7dd3fc;color:#07304f;font-weight:700}
+
+/* ===== 共通トーン（3ページ共通の色・角丸・文字）===== */
+*{font-family:-apple-system,BlinkMacSystemFont,"Hiragino Maru Gothic ProN","Hiragino Sans","Segoe UI",Roboto,Arial,sans-serif}
+body{background:linear-gradient(180deg,#0a1b33,#12365c)!important;color:#f8fafc;min-height:100vh}
+.metric-card,#conditionAdviceCard{background:rgba(255,255,255,.07)!important;border:none!important;border-radius:18px!important}
+.chart-card{background:#15304f!important;border:none!important;border-radius:18px!important}
+.sticky-axis-container,.axis-timeline-labels{background:#15304f!important}
+.chart-legend-header{border-bottom-color:rgba(255,255,255,.12)!important}
+.btn-refresh{background:#7dd3fc!important;color:#07304f!important;border-radius:999px!important;font-weight:700!important;padding:7px 16px!important}
+.selected-time-display{background:rgba(255,255,255,.12)!important;border-radius:999px!important;padding:2px 10px!important}
+.loading-overlay{background:rgba(21,48,79,.95)!important;border-radius:18px!important}
+header h1{font-size:1.15rem!important;letter-spacing:.04em;text-align:left}
+header{text-align:left!important;padding:0 2px}
+.subtitle,.location-note{color:#9fb4cc!important}
+
+/* ===== 上段カードの段そろえ・風バッジ ===== */
+.metric-card{padding:9px 2px!important}
+.metric-label{height:16px;line-height:16px;font-size:.68rem;color:#9fb4cc!important}
+.metric-value{font-size:15px!important;font-weight:500!important;height:24px;line-height:24px;margin-top:2px!important}
+.metric-sub{font-size:12px!important;height:20px;line-height:20px;margin-top:0!important;color:#e2e8f0}
+#seaTempText{font-size:15px!important;font-weight:500!important;height:24px;line-height:24px;margin-top:2px!important;letter-spacing:-.5px;white-space:nowrap}
+.compass-wrap{height:26px;align-items:center;margin-top:0!important}
+.moon-icon{height:26px;line-height:26px;margin-top:0!important;font-size:1.05rem!important}
+.metric-value.weather{height:26px;line-height:26px;font-size:1.3rem!important;margin-top:0!important}
+.wind-badge{align-self:center;height:20px;line-height:20px;font-size:11px!important;padding:0 8px!important;margin-top:0!important;border-radius:999px!important}
+.badge-offshore{background:rgba(74,222,128,.2)!important;color:#86efac!important}
+.badge-cross{background:rgba(250,204,21,.2)!important;color:#fde68a!important}
+.badge-onshore{background:rgba(251,113,133,.22)!important;color:#fda4af!important}
 </style>
 </head>
 <body>
@@ -386,7 +414,7 @@ body{padding-bottom:92px!important}
             </div>
             <div class="legend-item legend-tide">
                 <span class="legend-color-box"></span>
-                <span>潮位 (m)</span>
+                <span id="tideLegendText">潮位 (m)</span>
             </div>
         </div>
 
@@ -472,6 +500,23 @@ body{padding-bottom:92px!important}
         };
 
         Chart.register(dayNightBgPlugin);
+
+        // 波高の棒にやわらかい水色の光を付ける
+        const barGlowPlugin = {
+            id: 'barGlow',
+            beforeDatasetDraw: (chart, args) => {
+                if (chart.canvas.id !== 'marineChart' || args.index !== 0) return;
+                chart.ctx.save();
+                chart.ctx.shadowColor = 'rgba(56, 189, 248, 0.45)';
+                chart.ctx.shadowBlur = 8;
+            },
+            afterDatasetDraw: (chart, args) => {
+                if (chart.canvas.id !== 'marineChart' || args.index !== 0) return;
+                chart.ctx.restore();
+            }
+        };
+        Chart.register(barGlowPlugin);
+
 
         const timeLineLinesPlugin = {
             id: 'timeLineLines',
@@ -565,7 +610,7 @@ body{padding-bottom:92px!important}
             if (s <= 5.0) {
                 return { text: 'クロス風 影響小', class: 'badge-cross' };
             } else {
-                return { text: 'クロス風 面影響あり', class: 'badge-onshore' };
+                return { text: 'クロス風 影響大', class: 'badge-onshore' };
             }
         }
 
@@ -661,6 +706,23 @@ body{padding-bottom:92px!important}
                 return '満-- 干--';
             }
 
+            // 気象庁データがある場合：選択時刻に最も近い満潮・干潮を表示
+            if (globalData.tideEvents && globalData.tideEvents.length) {
+                const base = new Date(globalData.times[index]).getTime();
+                const pick = (type) => {
+                    let best = null, bd = Infinity;
+                    globalData.tideEvents.forEach(ev => {
+                        if (ev.type !== type) return;
+                        const d = Math.abs(ev.ts - base);
+                        if (d < bd) { bd = d; best = ev; }
+                    });
+                    if (!best) return '--';
+                    const t = new Date(best.ts);
+                    return `${t.getHours()}:${t.getMinutes().toString().padStart(2, '0')}`;
+                };
+                return `満${pick('hi')} 干${pick('lo')}`;
+            }
+
             const start = Math.max(0, index - 12);
             const end = Math.min(globalData.seaLevels.length - 1, index + 12);
 
@@ -688,6 +750,36 @@ body{padding-bottom:92px!important}
             return `満${highTime} 干${lowTime}`;
         }
 
+        // 気象庁（和歌山）の潮位表で、潮位と満潮・干潮を置き換える
+        async function applyJmaTide() {
+            try {
+                const r = await fetch('data/tide.json?' + Date.now());
+                if (!r.ok) return;
+                const tj = await r.json();
+                const days = tj.days || {};
+                const pad = (n) => String(n).padStart(2, '0');
+                let ok = false;
+                const levels = globalData.times.map(t => {
+                    const d = new Date(t);
+                    const rec = days[`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`];
+                    const v = rec && rec.h ? rec.h[d.getHours()] : null;
+                    if (v != null) ok = true;
+                    return v == null ? null : v;
+                });
+                if (!ok) return;
+                const events = [];
+                Object.keys(days).forEach(key => {
+                    (days[key].hi || []).forEach(([tm, cm]) => events.push({ ts: new Date(`${key}T${tm}:00`).getTime(), type: 'hi', cm }));
+                    (days[key].lo || []).forEach(([tm, cm]) => events.push({ ts: new Date(`${key}T${tm}:00`).getTime(), type: 'lo', cm }));
+                });
+                globalData.seaLevels = levels;
+                globalData.tideEvents = events;
+                globalData.tideUnit = 'cm';
+                const lg = document.getElementById('tideLegendText');
+                if (lg) lg.textContent = '潮位 (cm)';
+            } catch (e) { /* 取得できなければモデル値のまま */ }
+        }
+
         async function fetchData() {
             const loadingEl = document.getElementById('loading');
             if (loadingEl) loadingEl.style.display = 'flex';
@@ -713,6 +805,8 @@ body{padding-bottom:92px!important}
                     windDirections: dataWeather.hourly.wind_direction_10m || [],
                     weatherCodes: dataWeather.hourly.weather_code || []
                 };
+
+                await applyJmaTide();
 
                 const now = new Date();
                 let minDiff = Infinity;
@@ -755,7 +849,8 @@ body{padding-bottom:92px!important}
             }
 
             const curWave = globalData.waveHeights[index] != null ? Number(globalData.waveHeights[index]).toFixed(2) : '--';
-            const curTide = globalData.seaLevels[index] != null ? Number(globalData.seaLevels[index]).toFixed(2) : '--';
+            const tideIsCm = globalData.tideUnit === 'cm';
+            const curTide = globalData.seaLevels[index] != null ? Number(globalData.seaLevels[index]).toFixed(tideIsCm ? 0 : 2) : '--';
             const curWindSpeed = globalData.windSpeeds[index] != null ? globalData.windSpeeds[index] : '--';
             const curSeaTemp = globalData.seaTemps && globalData.seaTemps[index] != null ? Number(globalData.seaTemps[index]).toFixed(1) : '--';
             const windType = getWindType(globalData.windDirections[index], curWindSpeed);
@@ -767,7 +862,7 @@ body{padding-bottom:92px!important}
             document.getElementById('tideExtreme').textContent = getTideExtremes(index);
 
             document.getElementById('currentWave').textContent = curWave !== '--' ? `${curWave}m` : '--';
-            document.getElementById('currentTide').textContent = curTide !== '--' ? `${curTide}m` : '--';
+            document.getElementById('currentTide').textContent = curTide !== '--' ? `${curTide}${tideIsCm ? 'cm' : 'm'}` : '--';
             document.getElementById('currentWind').textContent = curWindSpeed !== '--' ? `${curWindSpeed}m/s` : '--';
 
             const tidePhase = getTidePhaseInfo(t);
@@ -930,9 +1025,17 @@ body{padding-bottom:92px!important}
                         {
                             label: '波高 (m)',
                             data: waveData,
-                            backgroundColor: 'rgba(56, 189, 248, 0.65)',
-                            borderColor: '#38bdf8',
-                            borderWidth: 1,
+                            backgroundColor: (c) => {
+                                const a = c.chart.chartArea;
+                                if (!a) return 'rgba(56, 189, 248, 0.7)';
+                                const g = c.chart.ctx.createLinearGradient(0, a.top, 0, a.bottom);
+                                g.addColorStop(0, 'rgba(186, 230, 253, 0.92)');
+                                g.addColorStop(1, 'rgba(56, 189, 248, 0.8)');
+                                return g;
+                            },
+                            borderWidth: 0,
+                            borderRadius: { topLeft: 6, topRight: 6, bottomLeft: 2, bottomRight: 2 },
+                            borderSkipped: false,
                             yAxisID: 'yWave',
                             order: 2
                         },
