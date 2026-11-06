@@ -30,7 +30,7 @@ body{padding-bottom:92px!important}
 
 /* ===== 共通トーン（3ページ共通の色・角丸・文字）===== */
 *{font-family:-apple-system,BlinkMacSystemFont,"Hiragino Maru Gothic ProN","Hiragino Sans","Segoe UI",Roboto,Arial,sans-serif}
-body{background:linear-gradient(180deg,#0a1b33,#12365c)!important;padding-left:12px;padding-right:12px}
+body{background:linear-gradient(180deg,#0a1b33,#12365c)!important;padding-top:10px;padding-left:6px;padding-right:6px}
 .head{padding:12px 2px 8px!important}
 .head .d{color:#7dd3fc!important;font-size:1.25rem}
 .head .t{color:#fde68a!important}
@@ -39,19 +39,27 @@ canvas{border-radius:18px}
 .ctl button{background:rgba(255,255,255,.12)!important;border-radius:999px!important}
 .ctl #now{background:#7dd3fc!important;color:#07304f!important;font-weight:700}
 .ctl input[type=range]{accent-color:#7dd3fc}
+.strip{position:relative;overflow-x:auto;white-space:nowrap;padding:4px 0 8px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.strip::-webkit-scrollbar{display:none}
+#st{display:inline-flex}
+.dg{padding-left:6px;border-left:1.5px solid rgba(255,255,255,.18)}
+.dg:first-child{border-left:none;padding-left:0}
+.dl{position:sticky;left:0;width:max-content;color:#9fb4cc;font-size:.78rem;padding:0 0 6px 4px;height:22px}
+.hr{display:flex}
+.tc{width:46px;height:38px;line-height:38px;text-align:center;border-radius:10px;font-size:1rem;cursor:pointer;color:#f8fafc}
+.tc.past{color:#6f86a3}
+.tc.on{background:#7dd3fc;color:#07304f}
 .leg,.note,#status{padding-left:2px!important;padding-right:2px!important;color:#9fb4cc}
 </style>
 </head>
 <body>
-<div class="head"><span class="d" id="hd">--</span><span class="t" id="ht">--</span></div>
 <canvas id="cv"></canvas>
 <div class="ctl">
-  <button id="prev">◀</button>
   <button id="play">▶</button>
-  <button id="next">▶|</button>
-  <input type="range" id="sl" min="0" max="0" value="0">
-  <button id="now" style="width:auto;padding:0 10px;font-size:.75rem">現在</button>
+  <span style="flex:1"></span>
+  <button id="now" style="width:auto;padding:0 16px;font-size:.8rem">現在</button>
 </div>
+<div class="strip" id="sc"><div id="st"></div></div>
 <div class="leg">
   <div class="row"><span>地点の矢印＝風</span>
     <span class="chip"><i style="background:#8fb3e0"></i>〜2m</span>
@@ -240,25 +248,55 @@ function draw() {
     ctx.fillText(wave != null ? `波高 ${wave.toFixed(2)}m` : '波高 --', bx + 7, by + 50);
   });
 
-  // ヘッダー
-  const d = new Date(DATA.times[t]);
-  document.getElementById('hd').textContent = `${d.getMonth() + 1}月${d.getDate()}日（${'日月火水木金土'[d.getDay()]}）`;
-  document.getElementById('ht').textContent = `${d.getHours()}時`;
-  document.getElementById('sl').value = t;
+  paintStrip();
 }
 
 // ---- 操作 ----
-const sl = document.getElementById('sl');
-function setIdx(i) { idx = Math.max(nowIdx, Math.min(DATA.times.length - 1, i)); draw(); }
+// ---- 時刻の並び（3時間おき）----
+const sc = document.getElementById('sc'), stEl = document.getElementById('st');
+let cellEl = {};
+function buildStrip() {
+  cellEl = {};
+  const W7 = '日月火水木金土';
+  let html = '', curDay = null, open = false;
+  DATA.times.forEach((t, i) => {
+    const d = new Date(t);
+    if (d.getHours() % 3) return;
+    const key = d.getFullYear() + '-' + d.getMonth() + '-' + d.getDate();
+    if (key !== curDay) {
+      if (open) html += '</div></div>';
+      html += `<div class="dg"><div class="dl">${W7[d.getDay()]}，${d.getMonth() + 1}月${d.getDate()}日</div><div class="hr">`;
+      curDay = key; open = true;
+    }
+    html += `<div class="tc" data-i="${i}">${String(d.getHours()).padStart(2, '0')}</div>`;
+  });
+  if (open) html += '</div></div>';
+  stEl.innerHTML = html;
+  stEl.querySelectorAll('.tc').forEach(el => { cellEl[+el.dataset.i] = el; });
+}
+function paintStrip() {
+  for (const k in cellEl) { const i = +k; cellEl[k].className = 'tc' + (i === idx ? ' on' : (i < nowIdx ? ' past' : '')); }
+}
+function goNow() {
+  const el = cellEl[nowIdx]; if (!el) return;
+  sc.scrollLeft = Math.max(0, el.offsetLeft - el.offsetWidth * 0.9);
+}
+function ensureVisible() {
+  const el = cellEl[idx]; if (!el) return;
+  const l = el.offsetLeft, r = l + el.offsetWidth;
+  if (l < sc.scrollLeft + 8) sc.scrollLeft = l - 8;
+  else if (r > sc.scrollLeft + sc.clientWidth - 8) sc.scrollLeft = r - sc.clientWidth + 8;
+}
+stEl.addEventListener('click', e => { const c = e.target.closest('.tc'); if (!c) return; stop(); setIdx(+c.dataset.i); });
+sc.addEventListener('wheel', e => { if (Math.abs(e.deltaY) > Math.abs(e.deltaX) && sc.scrollWidth > sc.clientWidth) { e.preventDefault(); sc.scrollLeft += e.deltaY + e.deltaX; } }, { passive: false });
+
+function setIdx(i) { idx = Math.max(0, Math.min(DATA.times.length - 1, i)); draw(); }
 function stop() { if (timer) { clearInterval(timer); timer = null; document.getElementById('play').textContent = '▶'; } }
-document.getElementById('prev').onclick = () => { stop(); setIdx(idx - 1); };
-document.getElementById('next').onclick = () => { stop(); setIdx(idx + 1); };
-document.getElementById('now').onclick = () => { stop(); setIdx(nowIdx); };
-sl.oninput = () => { stop(); setIdx(+sl.value); };
+document.getElementById('now').onclick = () => { stop(); setIdx(nowIdx); goNow(); };
 document.getElementById('play').onclick = () => {
   if (timer) return stop();
   document.getElementById('play').textContent = '⏸';
-  timer = setInterval(() => setIdx(idx >= DATA.times.length - 1 ? nowIdx : idx + 1), 500);
+  timer = setInterval(() => { setIdx(idx + 3 > DATA.times.length - 1 ? nowIdx : idx + 3); ensureVisible(); }, 500);
 };
 
 (async function init() {
@@ -266,10 +304,10 @@ document.getElementById('play').onclick = () => {
     DATA = await loadData();
     prepare();
     const now = new Date(); let best = Infinity;
-    DATA.times.forEach((t, i) => { const d = Math.abs(new Date(t) - now); if (d < best) { best = d; nowIdx = i; } });
-    sl.max = DATA.times.length - 1;
-    sl.min = nowIdx;
+    DATA.times.forEach((t, i) => { if (new Date(t).getHours() % 3) return; const d = Math.abs(new Date(t) - now); if (d < best) { best = d; nowIdx = i; } });
+    buildStrip();
     setIdx(nowIdx);
+    goNow();
   } catch (e) { document.getElementById('status').textContent = 'エラー: ' + e.message; }
 })();
 </script>
