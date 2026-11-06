@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>磯ノ浦・産湯 波予報</title>
+<style>
+:root{--bg1:#0a1b33;--bg2:#12365c;--strip:rgba(255,255,255,.07);--line:rgba(255,255,255,.12);--tx:#f8fafc;--tx2:#9fb4cc;--aqua:#7dd3fc;--yel:#fde68a;--pink:#fda4af;--col:48px}
+*{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,"Hiragino Maru Gothic ProN","Hiragino Sans","Segoe UI",Roboto,Arial,sans-serif}
+body{background:linear-gradient(180deg,var(--bg1),var(--bg2));color:var(--tx);max-width:600px;margin:0 auto;padding:10px 0 24px;min-height:100vh}
+.top{display:flex;justify-content:space-between;align-items:center;padding:0 14px 8px}
+.dt{font-size:.8rem;font-weight:400;color:var(--aqua);letter-spacing:.03em}
+.scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:4px;scrollbar-width:none}
+.scroll::-webkit-scrollbar{display:none}
+@media (pointer:fine){.scroll{scrollbar-width:thin;scrollbar-color:#38bdf8 transparent;cursor:grab}.scroll::-webkit-scrollbar{display:block;height:8px}.scroll::-webkit-scrollbar-thumb{background:#38bdf8;border-radius:4px}}
+.scroll.drag{cursor:grabbing;user-select:none}
+.wrap{position:relative}
+.hrs{display:flex;margin-bottom:6px}
+.th{width:var(--col);flex:none;text-align:center;font-size:.72rem;line-height:20px;color:#e2e8f0}
+.th.day0{border-left:2px solid var(--line)}
+.th.now{background:rgba(251,113,133,.5);color:#fff;border-radius:999px}
+.strip{background:var(--strip);border-radius:16px;margin:0 8px 8px 0;padding-bottom:4px}
+.lab{height:34px;padding:6px 0 0 10px}
+.chip{position:sticky;left:10px;display:inline-flex;gap:8px;align-items:baseline;background:rgba(10,27,51,.82);border-radius:999px;padding:2px 12px;backdrop-filter:blur(4px);z-index:6}
+.chip b{font-size:.72rem;font-weight:400}.chip small{font-size:.7rem;color:var(--tx2)}
+.cols{display:flex}
+.c{width:var(--col);flex:none;text-align:center;position:relative}
+.c.day0{border-left:2px solid var(--line)}
+.c.night{background:rgba(5,15,30,.28)}
+.c.now{background:rgba(251,113,133,.16);box-shadow:inset 0 0 0 1.5px rgba(251,113,133,.8);border-radius:12px}
+.wx{height:26px;font-size:1.1rem;line-height:26px}
+.wa{height:16px;line-height:16px;font-size:.9rem}.wa span{display:inline-block}
+.wd{height:13px;line-height:13px;font-size:.58rem;white-space:nowrap;font-weight:400;letter-spacing:-.2px}
+.ws{height:15px;line-height:15px;font-size:.66rem;font-weight:400}
+.wv{height:84px;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;padding-bottom:3px}
+.wv .num{font-size:.74rem;font-weight:400;margin-bottom:2px}
+.wv .bx{border-radius:9px 9px 5px 5px;background:linear-gradient(180deg,#bae6fd,#38bdf8);min-height:8px;box-shadow:0 2px 8px rgba(56,189,248,.35)}
+.sa{height:18px;line-height:18px;font-size:.9rem;color:var(--yel);font-weight:400}.sa span{display:inline-block}
+.sp{height:14px;line-height:14px;font-size:.6rem;color:var(--yel);font-weight:400}
+.g{color:#86efac}.m{color:#fde68a}.r{color:#fda4af}
+.tide svg{display:block}
+.tnote{font-size:.7rem;color:var(--tx2);padding:10px 16px}
+.legend{padding:2px 14px 0;font-size:.62rem;color:#7c93ad}
+.foot{display:flex;justify-content:space-between;align-items:center;padding:6px 14px 0}
+.btn{background:var(--aqua);color:#07304f;border:none;border-radius:999px;padding:6px 14px;font-size:.76rem;font-weight:500;cursor:pointer}
+.lu{font-size:.7rem;color:var(--tx2)}
+.note{font-size:.62rem;color:#7c93ad;padding:8px 14px;line-height:1.6}
+#loading{position:fixed;inset:0;background:rgba(10,27,51,.85);display:flex;justify-content:center;align-items:center;font-weight:600;z-index:50}
+
+/* ===== 共通タブバー ===== */
+body{padding-bottom:92px!important}
+.tabbar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(14px + env(safe-area-inset-bottom));width:calc(100% - 28px);max-width:400px;display:flex;gap:4px;padding:5px;background:rgba(15,36,66,.82);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.14);border-radius:999px;box-shadow:0 8px 24px rgba(0,0,0,.4);z-index:100}
+.tabbar a{flex:1;text-align:center;text-decoration:none;color:#b6c8dc;font-size:.78rem;font-weight:600;letter-spacing:.04em;padding:10px 4px;border-radius:999px;transition:background .2s,color .2s;white-space:nowrap;font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Segoe UI",Roboto,Arial,sans-serif}
+.tabbar a.on{background:#7dd3fc;color:#07304f;font-weight:700}
+</style>
+</head>
+<body>
+<div class="top"><span class="dt" id="dateLbl">--</span>
+</div>
+<div class="scroll" id="scroll"><div class="wrap" id="wrap"></div></div>
+<div class="legend">黄矢印 うねりの向きと周期　白矢印 風の向き　波高はm</div>
+<div class="foot"><span class="lu" id="lastUpdate">更新: --</span><button class="btn" onclick="goNow()">いまに戻る</button></div>
+<p class="note">※ 波・水温は数km格子のモデル値（沖の目安）。潮位は気象庁の和歌山の潮位表。潮回りは月の満ち欠けからの計算で、公式と1日ずれることがあります。産湯の座標・沖向きは仮設定です。</p>
+<div id="loading">取得中...</div>
+
+<script>
+// ===== 地点設定 =====
+const SPOTS = [
+  { id:'iso', name:'磯ノ浦', lat:34.25, lon:135.08, shoreDeg:200 },
+  { id:'ubu', name:'産湯',   lat:33.90, lon:135.05, shoreDeg:270 },
+];
+const STEP_H=3, FETCH_DAYS=7, PER_DAY=24/STEP_H, BAR_MAX=64;
+let COL=48;
+const showDays=FETCH_DAYS;
+const ON_ANGLE=45, OFF_ANGLE=135;
+const state={now:0,times:[],data:{},tide:null};
+const scEl=document.getElementById('scroll');
+
+const angDiff=(a,b)=>{let d=Math.abs(a-b)%360;return d>180?360-d:d;};
+const num=v=>v==null?null:Number(v);
+const isDay=h=>h>=5&&h<=18;
+const DIRS=['北','北北東','北東','東北東','東','東南東','南東','南南東','南','南南西','南西','西南西','西','西北西','北西','北北西'];
+const dirName=d=>d==null?'--':DIRS[Math.round(d/22.5)%16];
+const travel=d=>d==null?null:(d+180)%360;
+const f1=v=>v==null?'--':Number(v).toFixed(1);
+const pad=n=>String(n).padStart(2,'0');
+const ymd=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+
+function weatherIcon(c){
+  if(c==null)return'';if(c===0)return'☀️';if(c<=2)return'🌤️';if(c===3)return'☁️';
+  if(c>=45&&c<=48)return'🌫️';if(c>=51&&c<=57)return'🌧️';if(c>=61&&c<=67)return'☔';
+  if(c>=71&&c<=77)return'❄️';if(c>=80&&c<=82)return'🌧️';if(c>=85&&c<=86)return'❄️';if(c>=95)return'⚡';return'☁️';
+}
+function windClass(deg,sp,shore){
+  if(deg==null||sp==null)return'';if(sp<2.5)return'g';
+  const d=angDiff(deg,shore);
+  if(d>=OFF_ANGLE)return sp<=5.5?'g':sp<=8.5?'m':'r';
+  if(d<=ON_ANGLE)return sp<=4?'m':'r';
+  return sp<=5?'m':'r';
+}
+const SYN=29.53058867;
+const moonAge=date=>{let a=((date.getTime()-Date.UTC(2000,0,6,18,14,0))/86400000)%SYN;return a<0?a+SYN:a;};
+function tidePhase(date){const h=SYN/2,p=moonAge(date)%h;
+  if(p<=1.5||p>=h-1.5)return'大潮';if(p<=3.5||p>=h-3.5)return'中潮';
+  if(p<=5.5||p>=h-5.5)return'小潮';if(p<=6.5||p>=h-6.5)return'長潮';return'若潮';}
+const moonEmoji=d=>['🌑','🌒','🌓','🌔','🌕','🌖','🌗','🌘'][Math.round(moonAge(d)/SYN*8)%8];
+
+// ===== 取得 =====
+async function fetchSpot(s){
+  const tz='timezone=Asia%2FTokyo&forecast_days='+FETCH_DAYS;
+  const um=`https://marine-api.open-meteo.com/v1/marine?latitude=${s.lat}&longitude=${s.lon}&hourly=wave_height,swell_wave_direction,swell_wave_period,sea_surface_temperature&${tz}`;
+  const uw=`https://api.open-meteo.com/v1/forecast?latitude=${s.lat}&longitude=${s.lon}&hourly=wind_speed_10m,wind_direction_10m,weather_code&wind_speed_unit=ms&${tz}`;
+  const [rm,rw]=await Promise.all([fetch(um),fetch(uw)]);
+  if(!rm.ok||!rw.ok)throw new Error(s.name+'：データ取得に失敗しました');
+  const jm=(await rm.json()).hourly, jw=(await rw.json()).hourly;
+  const wi={};(jw.time||[]).forEach((t,i)=>wi[t]=i);
+  const o={times:[],wave:[],swDir:[],swPer:[],sst:[],wspd:[],wdir:[],wcode:[]};
+  (jm.time||[]).forEach((t,i)=>{
+    if(new Date(t).getHours()%STEP_H!==0)return;
+    const j=wi[t];
+    o.times.push(t);o.wave.push(num(jm.wave_height?.[i]));o.swDir.push(num(jm.swell_wave_direction?.[i]));
+    o.swPer.push(num(jm.swell_wave_period?.[i]));o.sst.push(num(jm.sea_surface_temperature?.[i]));
+    o.wspd.push(j!=null?num(jw.wind_speed_10m?.[j]):null);o.wdir.push(j!=null?num(jw.wind_direction_10m?.[j]):null);
+    o.wcode.push(j!=null?num(jw.weather_code?.[j]):null);
+  });
+  return o;
+}
+async function fetchTide(){
+  try{const r=await fetch('data/tide.json?'+Date.now());if(r.ok)return await r.json();}catch(e){}
+  return null;
+}
+async function fetchAll(){
+  const ld=document.getElementById('loading');ld.style.display='flex';
+  try{
+    const [res,tide]=await Promise.all([Promise.all(SPOTS.map(fetchSpot)),fetchTide()]);
+    SPOTS.forEach((s,i)=>state.data[s.id]=res[i]);
+    state.times=res[0].times;state.tide=tide;
+    const now=new Date();let best=Infinity;
+    state.times.forEach((t,i)=>{const d=Math.abs(new Date(t)-now);if(d<best){best=d;state.now=i;}});
+    render();goNow();
+    document.getElementById('lastUpdate').textContent='更新: '+now.toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'});
+  }catch(e){alert('エラー: '+e.message);}
+  finally{ld.style.display='none';}
+}
+
+// ===== 描画 =====
+function calcCol(){
+  const w=scEl.clientWidth||Math.min(window.innerWidth,600);
+  COL=Math.max(38,Math.min(64,Math.floor((w-8)/PER_DAY)));
+  document.documentElement.style.setProperty('--col',COL+'px');
+}
+function visibleCount(){
+  const st=new Date(state.times[0]);st.setHours(0,0,0,0);
+  const end=st.getTime()+showDays*86400000;
+  let n=0;for(const t of state.times){if(new Date(t).getTime()<end)n++;else break;}
+  return Math.max(n,1);
+}
+function hoursRow(n,W){
+  let c='';
+  for(let i=0;i<n;i++){const h=new Date(state.times[i]).getHours();
+    c+=`<div class="th${h===0?' day0':''}${i===state.now?' now':''}">${h}時</div>`;}
+  return `<div class="hrs" style="width:${W}px">${c}</div>`;
+}
+function tideBlock(n,W){
+  const tide=state.tide;
+  const head=`<div class="lab"><span class="chip"><b>和歌山潮位</b><small class="tph"></small></span></div>`;
+  if(!tide||!tide.days) return `<div class="strip tide" style="width:${W}px">${head}<div class="tnote">潮位データ準備中（GitHubのActionsで潮位の取得を実行すると表示されます）</div></div>`;
+  const start=new Date(state.times[0]);start.setHours(0,0,0,0);
+  const totalH=n*STEP_H;
+  const pts=[],marks=[];let mn=1e9,mx=-1e9;
+  for(let d=0;d*24<totalH;d++){
+    const day=new Date(start.getTime()+d*86400000), rec=tide.days[ymd(day)];
+    if(!rec)continue;
+    rec.h.forEach((v,hr)=>{ if(v==null)return;const k=d*24+hr;if(k>=totalH)return;pts.push([k,v]);mn=Math.min(mn,v);mx=Math.max(mx,v);});
+    const add=(arr,kind)=>(arr||[]).forEach(([tm,cm])=>{const hh=+tm.slice(0,2),mm=+tm.slice(3,5);marks.push({k:d*24+hh+mm/60,tm,cm,kind});});
+    add(rec.hi,'hi');add(rec.lo,'lo');
+  }
+  if(!pts.length) return `<div class="strip tide" style="width:${W}px">${head}<div class="tnote">この期間の潮位データがありません</div></div>`;
+  const H=76,top=22,bot=20,span=Math.max(1,mx-mn);
+  const X=k=>k/STEP_H*COL+COL/2, Y=v=>top+(1-(v-mn)/span)*(H-top-bot);
+  let d='';const P=pts.map(([k,v])=>[X(k),Y(v)]);
+  P.forEach((p,i)=>{if(!i){d+=`M${p[0]},${p[1]}`;return;}
+    const p0=P[i-2]||P[i-1],p1=P[i-1],p2=p,p3=P[i+1]||p;
+    d+=` C${p1[0]+(p2[0]-p0[0])/6},${p1[1]+(p2[1]-p0[1])/6} ${p2[0]-(p3[0]-p1[0])/6},${p2[1]-(p3[1]-p1[1])/6} ${p2[0]},${p2[1]}`;});
+  const area=d+` L${X(pts[pts.length-1][0])},${H} L${X(pts[0][0])},${H} Z`;
+  const lbls=marks.filter(m=>m.k<totalH).map(m=>{
+    const x=X(m.k),y=Y(m.cm),up=m.kind==='hi';
+    return `<circle cx="${x}" cy="${y}" r="3.5" fill="${up?'#fde68a':'#fff'}"/><text x="${x}" y="${up?y-7:y+14}" text-anchor="middle" font-size="10" fill="${up?'#fde68a':'#e2e8f0'}" font-weight="400">${up?'満':'干'}${m.tm}</text>`;}).join('');
+  return `<div class="strip tide" style="width:${W}px">${head}<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
+    <defs><linearGradient id="tg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#38bdf8" stop-opacity=".45"/><stop offset="1" stop-color="#38bdf8" stop-opacity="0"/></linearGradient></defs>
+    <path d="${area}" fill="url(#tg)"/><path d="${d}" fill="none" stroke="#7dd3fc" stroke-width="2.4" stroke-linecap="round"/>${lbls}</svg></div>`;
+}
+function spotBlock(s,n,maxV,W){
+  const d=state.data[s.id], sst=d.sst[state.now]!=null?`水温 ${f1(d.sst[state.now])}℃`:'';
+  const bw=Math.round(COL*0.58);
+  let cols='';
+  for(let i=0;i<n;i++){
+    const t=new Date(state.times[i]),h=t.getHours(),tot=d.wave[i];
+    const bh=tot!=null?Math.min(BAR_MAX,Math.max(8,Math.round(tot/maxV*BAR_MAX))):0;
+    const wA=travel(d.wdir[i]),sA=travel(d.swDir[i]);
+    const wc=windClass(d.wdir[i],d.wspd[i],s.shoreDeg);
+    const ok=d.wspd[i]!=null;
+    cols+=`<div class="c${h===0?' day0':''}${isDay(h)?'':' night'}${i===state.now?' now':''}">
+      <div class="wx">${weatherIcon(d.wcode[i])}</div>
+      <div class="wa">${wA==null?'':`<span style="transform:rotate(${wA}deg)">↑</span>`}</div>
+      <div class="wd ${wc}">${ok?dirName(d.wdir[i]):'--'}</div>
+      <div class="ws ${wc}">${ok?Math.round(d.wspd[i])+'m':''}</div>
+      <div class="wv"><div class="num">${f1(tot)}</div><div class="bx" style="width:${bw}px;height:${bh}px"></div></div>
+      <div class="sa">${sA==null?'':`<span style="transform:rotate(${sA}deg)">↑</span>`}</div>
+      <div class="sp">${d.swPer[i]!=null?Math.round(d.swPer[i])+'s':''}</div></div>`;
+  }
+  return `<div class="strip" style="width:${W}px"><div class="lab"><span class="chip"><b>${s.name}</b><small>${sst}</small></span></div><div class="cols">${cols}</div></div>`;
+}
+function render(){
+  calcCol();
+  const n=visibleCount(),W=n*COL;
+  const maxV=Math.max(1.5,...SPOTS.flatMap(s=>state.data[s.id].wave.slice(0,n).map(v=>v||0)));
+  document.getElementById('wrap').style.width=(W+8)+'px';
+  document.getElementById('wrap').innerHTML=
+    hoursRow(n,W)+tideBlock(n,W)+SPOTS.map(s=>spotBlock(s,n,maxV,W)).join('');
+}
+function updDate(){
+  if(!state.times.length)return;
+  const i=Math.min(state.times.length-1,Math.max(0,Math.round(scEl.scrollLeft/COL)));
+  const t=new Date(state.times[i]);
+  document.getElementById('dateLbl').textContent=`${t.getMonth()+1}/${t.getDate()} ${'日月火水木金土'[t.getDay()]}`;
+  const ph=tidePhase(new Date(t.getFullYear(),t.getMonth(),t.getDate(),12));
+  document.querySelectorAll('.tph').forEach(e=>e.textContent=ph);
+}
+function goNow(){
+  const dayStart=Math.floor(state.now/PER_DAY)*PER_DAY;
+  scEl.scrollLeft=dayStart*COL;
+  updDate();
+}
+scEl.addEventListener('scroll',updDate,{passive:true});
+let rzT=null;
+window.addEventListener('resize',()=>{clearTimeout(rzT);rzT=setTimeout(()=>{if(state.times.length){const k=Math.round(scEl.scrollLeft/COL);render();scEl.scrollLeft=k*COL;updDate();}},200);});
+scEl.addEventListener('wheel',e=>{
+  if(Math.abs(e.deltaY)>Math.abs(e.deltaX)&&scEl.scrollWidth>scEl.clientWidth){e.preventDefault();scEl.scrollLeft+=e.deltaY+e.deltaX;}
+},{passive:false});
+let dragX=null,dragL=0;
+scEl.addEventListener('pointerdown',e=>{if(e.pointerType!=='mouse')return;dragX=e.clientX;dragL=scEl.scrollLeft;scEl.classList.add('drag');});
+window.addEventListener('pointermove',e=>{if(dragX!=null)scEl.scrollLeft=dragL-(e.clientX-dragX);});
+window.addEventListener('pointerup',()=>{dragX=null;scEl.classList.remove('drag');});
+window.onload=fetchAll;
+</script>
+<nav class="tabbar" id="tabbar">
+  <a href="index.html">磯の浦</a>
+  <a href="forecast.html">磯・産</a>
+  <a href="map.html">WAVE MAP</a>
+</nav>
+<script>
+(function(){var p=location.pathname.split('/').pop()||'index.html';
+document.querySelectorAll('#tabbar a').forEach(function(a){if(a.getAttribute('href')===p)a.classList.add('on');});})();
+</script>
+</body>
+</html>
