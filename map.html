@@ -40,7 +40,7 @@ canvas{border-radius:0}
 .ctl #now{background:#7dd3fc!important;color:#07304f!important;font-weight:700}
 .ctl input[type=range]{accent-color:#7dd3fc}
 #mapwrap{position:relative;height:calc(100vh - 130px);height:calc(100dvh - 130px);overflow:hidden}
-#mapwrap canvas{width:100%;height:100%;object-fit:cover;object-position:center top}
+#mapwrap canvas{width:100%;height:100%;object-fit:fill}
 #dock{position:absolute;left:0;right:0;bottom:0}
 #dbar{display:flex;align-items:stretch;background:rgba(10,27,51,.35);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
 #play{width:56px;flex:none;background:none;border:none;color:#fff;font-size:1.4rem;cursor:pointer}
@@ -90,8 +90,14 @@ const LAND = [[[133.401,35.454],[133.419,35.457],[133.441,35.491],[133.527,35.52
 
 const BANDS = ['#3b5b92','#4a7fae','#5fa3b5','#7ab08a','#c2b872','#cf9a6b','#b97f9c','#c98a82','#b4574f'];
 const W = 600;
-const BB = CONFIG.bbox;
+const BB = Object.assign({}, CONFIG.bbox);
 const COSLAT = Math.cos(34.7 * Math.PI / 180);
+{ // 画面の縦横比に合わせて緯度の範囲を決める（太平洋6：日本海4）
+  const mw = document.getElementById('mapwrap');
+  const ar = mw.clientHeight / Math.max(1, mw.clientWidth);
+  const span = ar * (BB.lon1 - BB.lon0) * COSLAT;
+  BB.lat0 = 34.8 - 0.6 * span; BB.lat1 = 34.8 + 0.4 * span;
+}
 const H = Math.round(W * (BB.lat1 - BB.lat0) / ((BB.lon1 - BB.lon0) * COSLAT));
 const P = (lon, lat) => [(lon - BB.lon0) / (BB.lon1 - BB.lon0) * W, (BB.lat1 - lat) / (BB.lat1 - BB.lat0) * H];
 
@@ -277,7 +283,7 @@ function buildTimeline() {
     const d = new Date(t);
     if (d.getHours() % 3) return;
     const key = d.getFullYear() + '-' + d.getMonth() + '-' + d.getDate();
-    if (key !== cur) { flush(); cur = key; cnt = 0; hrs = ''; lab = `${d.getDate()}(${W7[d.getDay()]})`;` }
+    if (key !== cur) { flush(); cur = key; cnt = 0; hrs = ''; lab = `${d.getDate()}(${W7[d.getDay()]})`; }
     cnt++; hrs += `<span style="width:${STEP}px">${String(d.getHours()).padStart(2, '0')}</span>`;
   });
   flush();
