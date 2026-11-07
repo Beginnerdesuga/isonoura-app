@@ -50,12 +50,12 @@ canvas{border-radius:0}
 #tin{display:inline-flex;padding:0 50%}
 .dg{flex:none;border-left:1.5px solid rgba(255,255,255,.2)}
 .dg:first-child{border-left:none}
-.dl{text-align:center;color:#e5e7eb;font-size:1.05rem;padding:11px 0 7px;white-space:nowrap}
+.dl{text-align:center;color:#e5e7eb;font-size:.85rem;padding:11px 0 7px;white-space:nowrap}
 .hr{display:flex;height:0;overflow:hidden;opacity:0;transition:height .25s,opacity .25s;color:#9fb4cc;font-size:.72rem}
 .hr span{flex:none;text-align:center}
 #dock.open .hr{height:22px;opacity:1}
 #ph{position:absolute;left:50%;top:0;bottom:0;width:2px;margin-left:-1px;background:#fde68a;pointer-events:none}
-#pill{position:absolute;left:50%;top:-28px;transform:translateX(-50%);background:#fde68a;color:#07304f;font-size:1rem;padding:3px 16px;border-radius:8px 8px 0 0;white-space:nowrap;pointer-events:none}
+#pill{position:absolute;left:50%;top:-28px;transform:translateX(-50%);background:#fde68a;color:#07304f;font-size:.85rem;padding:3px 16px;border-radius:8px 8px 0 0;white-space:nowrap;pointer-events:none}
 #now{position:absolute;right:10px;top:-38px;background:#7dd3fc;color:#07304f;border:none;border-radius:999px;padding:7px 16px;font-size:.8rem;font-weight:700;cursor:pointer}
 .note,#status{padding-left:14px!important;padding-right:14px!important;color:#9fb4cc}
 .leg{padding:4px 14px!important;color:#9fb4cc}
@@ -277,7 +277,7 @@ function buildTimeline() {
     const d = new Date(t);
     if (d.getHours() % 3) return;
     const key = d.getFullYear() + '-' + d.getMonth() + '-' + d.getDate();
-    if (key !== cur) { flush(); cur = key; cnt = 0; hrs = ''; lab = `${W7[d.getDay()]}曜日 ${d.getDate()}`; }
+    if (key !== cur) { flush(); cur = key; cnt = 0; hrs = ''; lab = `${d.getDate()}(${W7[d.getDay()]})`;` }
     cnt++; hrs += `<span style="width:${STEP}px">${String(d.getHours()).padStart(2, '0')}</span>`;
   });
   flush();
