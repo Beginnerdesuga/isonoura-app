@@ -39,29 +39,39 @@ canvas{border-radius:0}
 .ctl button{background:rgba(255,255,255,.12)!important;border-radius:999px!important}
 .ctl #now{background:#7dd3fc!important;color:#07304f!important;font-weight:700}
 .ctl input[type=range]{accent-color:#7dd3fc}
-.strip{position:relative;overflow-x:auto;white-space:nowrap;padding:4px 0 8px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
-.strip::-webkit-scrollbar{display:none}
-#st{display:inline-flex}
-.dg{padding-left:6px;border-left:1.5px solid rgba(255,255,255,.18)}
-.dg:first-child{border-left:none;padding-left:0}
-.dl{position:sticky;left:0;width:max-content;color:#9fb4cc;font-size:.78rem;padding:0 0 6px 4px;height:22px}
-.hr{display:flex}
-.tc{width:46px;height:38px;line-height:38px;text-align:center;border-radius:10px;font-size:1rem;cursor:pointer;color:#f8fafc}
-.tc.past{color:#6f86a3}
-.tc.on{background:#7dd3fc;color:#07304f}
 #mapwrap{position:relative}
-#dock{position:absolute;left:0;right:0;bottom:0;background:rgba(10,27,51,.82);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);padding:8px 12px 0;border-radius:16px 16px 0 0}
-#dock .ctl{padding:0 0 2px!important}
-#legend{display:none;padding:2px 0 6px}
+#dock{position:absolute;left:0;right:0;bottom:0}
+#dbar{display:flex;align-items:stretch;background:rgba(10,27,51,.86);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+#play{width:56px;flex:none;background:none;border:none;color:#fff;font-size:1.4rem;cursor:pointer}
+#tlw{position:relative;flex:1;min-width:0}
+#tl{overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+#tl::-webkit-scrollbar{display:none}
+#tin{display:inline-flex;padding:0 50%}
+.dg{flex:none;border-left:1.5px solid rgba(255,255,255,.2)}
+.dg:first-child{border-left:none}
+.dl{text-align:center;color:#e5e7eb;font-size:1.05rem;padding:11px 0 7px;white-space:nowrap}
+.hr{display:flex;height:0;overflow:hidden;opacity:0;transition:height .25s,opacity .25s;color:#9fb4cc;font-size:.72rem}
+.hr span{flex:none;text-align:center}
+#dock.open .hr{height:22px;opacity:1}
+#ph{position:absolute;left:50%;top:0;bottom:0;width:2px;margin-left:-1px;background:#fde68a;pointer-events:none}
+#pill{position:absolute;left:50%;top:-28px;transform:translateX(-50%);background:#fde68a;color:#07304f;font-size:1rem;padding:3px 16px;border-radius:8px 8px 0 0;white-space:nowrap;pointer-events:none}
+#now{position:absolute;right:10px;top:-38px;background:#7dd3fc;color:#07304f;border:none;border-radius:999px;padding:7px 16px;font-size:.8rem;font-weight:700;cursor:pointer}
 .note,#status{padding-left:14px!important;padding-right:14px!important;color:#9fb4cc}
-.leg{padding:4px 2px!important;color:#9fb4cc}
+.leg{padding:4px 14px!important;color:#9fb4cc}
 </style>
 </head>
 <body>
 <div id="mapwrap">
 <canvas id="cv"></canvas>
 <div id="dock">
-<div id="legend"><div class="leg">
+<button id="now">現在</button>
+<div id="dbar">
+  <button id="play">▶</button>
+  <div id="tlw"><div id="pill">--</div><div id="tl"><div id="tin"></div></div><div id="ph"></div></div>
+</div>
+</div>
+</div>
+<div class="leg">
   <div class="row"><span>地点の矢印＝風</span>
     <span class="chip"><i style="background:#8fb3e0"></i>〜2m</span>
     <span class="chip"><i style="background:#86c4aa"></i>3〜5m</span>
@@ -69,15 +79,6 @@ canvas{border-radius:0}
     <span class="chip"><i style="background:#e39a8a"></i>10m〜</span></div>
   <div class="row"><span>海の色＝波高</span><span class="bar" id="bar"></span><span style="font-size:.7rem">50cm刻み</span></div>
   <div style="font-size:.75rem">白矢印＝波の向き ／ 色矢印＝風</div>
-</div></div>
-<div class="ctl">
-  <button id="play">▶</button>
-  <span style="flex:1"></span>
-  <button id="lg" style="width:auto;padding:0 14px;font-size:.8rem">凡例</button>
-  <button id="now" style="width:auto;padding:0 16px;font-size:.8rem">現在</button>
-</div>
-<div class="strip" id="sc"><div id="st"></div></div>
-</div>
 </div>
 <div id="status"></div>
 <p class="note">※ 波高は数km〜数十km格子のモデル値を補間した目安で、沿岸の実際とは異なります。地点の座標・ラベル位置はdata/map-config.jsonで調整できます（沖側の座標を指定）。</p>
@@ -99,7 +100,7 @@ cv.width = W * dpr; cv.height = H * dpr;
 const ctx = cv.getContext('2d');
 
 let DATA = null, idx = 0, nowIdx = 0, timer = null;
-let selSpot = -1, probe = null, hits = [];
+let n3 = 0;
 let valid = [];       // 波高が取れた格子点
 let cells = null;     // 補間用の近傍リスト
 const CELL = 4, CW = Math.ceil(W / CELL), CH = Math.ceil(H / CELL);
@@ -230,117 +231,70 @@ function draw() {
     arrow(x, y, (d + 180) % 360, 22, 'rgba(255,255,255,.85)', 2.4);
   });
 
-  // 地点（風の色矢印・名前と波高。タップで詳細）
+  // 地点（風の色矢印・ラベル）
   const spots = CONFIG.spots;
-  hits = [];
-  ctx.textBaseline = 'alphabetic';
   spots.forEach((s, k) => {
     const [x, y] = P(s.lon, s.lat);
     const wd = DATA.wind[k];
     const sp = wd && wd.wspd[t] != null ? wd.wspd[t] : null;
     const dir = wd ? wd.wdir[t] : null;
     const wave = valueAt(nearest(s.lat, s.lon, 4, 0.8 * 0.8), t);
+
+    const bx = x + s.dx, by = y + s.dy, bw = 108, bh = 56;
+    ctx.strokeStyle = 'rgba(203,213,225,.7)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(x, y);
+    ctx.lineTo(Math.max(bx, Math.min(x, bx + bw)), Math.max(by, Math.min(y, by + bh))); ctx.stroke();
     if (sp != null && dir != null) arrow(x, y, (dir + 180) % 360, 26, windColor(sp), 3);
     ctx.fillStyle = '#e5e7eb'; ctx.beginPath(); ctx.arc(x, y, 4, 0, 7); ctx.fill();
-    let px = x + 7, py = y - 22;
-    if (k === selSpot) {
-      const bx = x + s.dx, by = y + s.dy, bw = 108, bh = 56;
-      ctx.strokeStyle = 'rgba(203,213,225,.7)'; ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(x, y);
-      ctx.lineTo(Math.max(bx, Math.min(x, bx + bw)), Math.max(by, Math.min(y, by + bh))); ctx.stroke();
-      ctx.fillStyle = 'rgba(15,40,70,.95)';
-      ctx.beginPath(); ctx.roundRect ? ctx.roundRect(bx, by, bw, bh, 6) : ctx.rect(bx, by, bw, bh); ctx.fill();
-      ctx.fillStyle = '#fff'; ctx.font = '700 14px sans-serif'; ctx.fillText(s.name, bx + 7, by + 17);
-      ctx.fillStyle = sp != null ? windColor(sp) : '#94a3b8'; ctx.font = '600 12px sans-serif';
-      ctx.fillText(sp != null ? `${dirName(dir)} ${Math.round(sp)}m/s` : '--', bx + 7, by + 34);
-      ctx.fillStyle = '#5fb8ff'; ctx.font = '700 13px sans-serif';
-      ctx.fillText(wave != null ? `波高 ${wave.toFixed(2)}m` : '波高 --', bx + 7, by + 50);
-      px = bx + bw / 2; py = by + bh / 2;
-    } else {
-      const txt = `${s.name} ${wave != null ? wave.toFixed(1) : '--'}`;
-      ctx.font = '600 12px sans-serif';
-      const w = ctx.measureText(txt).width + 12;
-      ctx.fillStyle = 'rgba(15,40,70,.85)';
-      ctx.beginPath(); ctx.roundRect ? ctx.roundRect(px, py, w, 20, 10) : ctx.rect(px, py, w, 20); ctx.fill();
-      ctx.fillStyle = '#fff'; ctx.fillText(txt, px + 6, py + 14);
-      px += w / 2; py += 10;
-    }
-    hits.push({ k, x, y, px, py });
-  });
-  // タップした場所の波高
-  if (probe) {
-    const v = valueAt(nearest(probe.lat, probe.lon, 5, 0.8 * 0.8), t);
-    ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(probe.x, probe.y, 5, 0, 7); ctx.stroke();
-    if (v != null) {
-      const txt = `波高 ${v.toFixed(2)}m`; ctx.font = '700 13px sans-serif';
-      const w = ctx.measureText(txt).width + 14, bx = Math.min(probe.x + 8, W - w - 4), by = Math.max(probe.y - 28, 4);
-      ctx.fillStyle = 'rgba(15,40,70,.95)';
-      ctx.beginPath(); ctx.roundRect ? ctx.roundRect(bx, by, w, 22, 11) : ctx.rect(bx, by, w, 22); ctx.fill();
-      ctx.fillStyle = '#5fb8ff'; ctx.fillText(txt, bx + 7, by + 16);
-    }
-  }
 
-  paintStrip();
+    ctx.fillStyle = 'rgba(15,40,70,.93)';
+    ctx.beginPath(); ctx.roundRect ? ctx.roundRect(bx, by, bw, bh, 6) : ctx.rect(bx, by, bw, bh); ctx.fill();
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillStyle = '#fff'; ctx.font = '700 14px sans-serif'; ctx.fillText(s.name, bx + 7, by + 17);
+    ctx.fillStyle = sp != null ? windColor(sp) : '#94a3b8'; ctx.font = '600 12px sans-serif';
+    ctx.fillText(sp != null ? `${dirName(dir)} ${Math.round(sp)}m/s` : '--', bx + 7, by + 34);
+    ctx.fillStyle = '#5fb8ff'; ctx.font = '700 13px sans-serif';
+    ctx.fillText(wave != null ? `波高 ${wave.toFixed(2)}m` : '波高 --', bx + 7, by + 50);
+  });
+  updatePill();
 }
 
-// ---- 操作 ----
-// ---- 時刻の並び（3時間おき）----
-const sc = document.getElementById('sc'), stEl = document.getElementById('st');
-let cellEl = {};
-function buildStrip() {
-  cellEl = {};
+// ---- 時間バー（再生を押すと時刻が出て、しばらくすると日付だけになる）----
+const dock = document.getElementById('dock'), tl = document.getElementById('tl'), tin = document.getElementById('tin');
+const pill = document.getElementById('pill'), playBtn = document.getElementById('play');
+const STEP = 44;  // 3時間ぶんの幅(px)
+let progScroll = false, collapseT = null;
+function updatePill() { if (!DATA) return; pill.textContent = new Date(DATA.times[idx]).getHours() + ':00'; }
+function stop() { if (timer) { clearInterval(timer); timer = null; playBtn.textContent = '▶'; } }
+function setIdx(i) { idx = Math.max(0, Math.min(DATA.times.length - 1, i)); draw(); }
+function expand() { dock.classList.add('open'); clearTimeout(collapseT); collapseT = setTimeout(() => dock.classList.remove('open'), 4000); }
+function buildTimeline() {
   const W7 = '日月火水木金土';
-  let html = '', curDay = null, open = false;
-  DATA.times.forEach((t, i) => {
+  let html = '', cur = null, cnt = 0, lab = '', hrs = '';
+  const flush = () => { if (cur !== null) html += `<div class="dg" style="width:${cnt * STEP}px"><div class="dl">${lab}</div><div class="hr">${hrs}</div></div>`; };
+  DATA.times.forEach(t => {
     const d = new Date(t);
     if (d.getHours() % 3) return;
     const key = d.getFullYear() + '-' + d.getMonth() + '-' + d.getDate();
-    if (key !== curDay) {
-      if (open) html += '</div></div>';
-      html += `<div class="dg"><div class="dl">${W7[d.getDay()]}，${d.getMonth() + 1}月${d.getDate()}日</div><div class="hr">`;
-      curDay = key; open = true;
-    }
-    html += `<div class="tc" data-i="${i}">${String(d.getHours()).padStart(2, '0')}</div>`;
+    if (key !== cur) { flush(); cur = key; cnt = 0; hrs = ''; lab = `${W7[d.getDay()]}曜日 ${d.getDate()}`; }
+    cnt++; hrs += `<span style="width:${STEP}px">${String(d.getHours()).padStart(2, '0')}</span>`;
   });
-  if (open) html += '</div></div>';
-  stEl.innerHTML = html;
-  stEl.querySelectorAll('.tc').forEach(el => { cellEl[+el.dataset.i] = el; });
+  flush();
+  tin.innerHTML = html;
 }
-function paintStrip() {
-  for (const k in cellEl) { const i = +k; cellEl[k].className = 'tc' + (i === idx ? ' on' : (i < nowIdx ? ' past' : '')); }
-}
-function goNow() {
-  const el = cellEl[nowIdx]; if (!el) return;
-  sc.scrollLeft = Math.max(0, el.offsetLeft - el.offsetWidth * 0.9);
-}
-function ensureVisible() {
-  const el = cellEl[idx]; if (!el) return;
-  const l = el.offsetLeft, r = l + el.offsetWidth;
-  if (l < sc.scrollLeft + 8) sc.scrollLeft = l - 8;
-  else if (r > sc.scrollLeft + sc.clientWidth - 8) sc.scrollLeft = r - sc.clientWidth + 8;
-}
-stEl.addEventListener('click', e => { const c = e.target.closest('.tc'); if (!c) return; stop(); setIdx(+c.dataset.i); });
-sc.addEventListener('wheel', e => { if (Math.abs(e.deltaY) > Math.abs(e.deltaX) && sc.scrollWidth > sc.clientWidth) { e.preventDefault(); sc.scrollLeft += e.deltaY + e.deltaX; } }, { passive: false });
-
-function setIdx(i) { idx = Math.max(0, Math.min(DATA.times.length - 1, i)); draw(); }
-function stop() { if (timer) { clearInterval(timer); timer = null; document.getElementById('play').textContent = '▶'; } }
-document.getElementById('lg').onclick = () => { const l = document.getElementById('legend'); l.style.display = l.style.display === 'block' ? 'none' : 'block'; };
-cv.addEventListener('click', e => {
-  if (!DATA) return;
-  const r = cv.getBoundingClientRect();
-  const x = (e.clientX - r.left) * W / r.width, y = (e.clientY - r.top) * H / r.height;
-  let best = -1, bd = 900;
-  hits.forEach(h => { const d = Math.min((h.x - x) ** 2 + (h.y - y) ** 2, (h.px - x) ** 2 + (h.py - y) ** 2); if (d < bd) { bd = d; best = h.k; } });
-  if (best >= 0) { selSpot = best === selSpot ? -1 : best; probe = null; }
-  else { selSpot = -1; probe = { x, y, lon: BB.lon0 + x / W * (BB.lon1 - BB.lon0), lat: BB.lat1 - y / H * (BB.lat1 - BB.lat0) }; }
-  draw();
-});
-document.getElementById('now').onclick = () => { stop(); setIdx(nowIdx); goNow(); };
-document.getElementById('play').onclick = () => {
-  if (timer) return stop();
-  document.getElementById('play').textContent = '⏸';
-  timer = setInterval(() => { setIdx(idx + 3 > DATA.times.length - 1 ? nowIdx : idx + 3); ensureVisible(); }, 500);
+function scrollToIdx(i) { progScroll = true; tl.scrollLeft = (i / 3) * STEP + STEP / 2; requestAnimationFrame(() => { progScroll = false; }); }
+tl.addEventListener('scroll', () => {
+  const c = Math.max(0, Math.min(n3 - 1, Math.round((tl.scrollLeft - STEP / 2) / STEP)));
+  if (c * 3 !== idx) { if (!progScroll) stop(); setIdx(c * 3); }
+}, { passive: true });
+['pointerdown', 'wheel', 'touchstart'].forEach(ev => tl.addEventListener(ev, expand, { passive: true }));
+tl.addEventListener('wheel', e => { if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) { e.preventDefault(); tl.scrollLeft += e.deltaY + e.deltaX; } }, { passive: false });
+playBtn.onclick = () => {
+  if (timer) { stop(); return; }
+  playBtn.textContent = '⏸'; expand();
+  timer = setInterval(() => { setIdx(idx + 3 > DATA.times.length - 1 ? nowIdx : idx + 3); scrollToIdx(idx); }, 500);
 };
+document.getElementById('now').onclick = () => { stop(); setIdx(nowIdx); scrollToIdx(nowIdx); expand(); };
 
 (async function init() {
   try {
@@ -348,9 +302,10 @@ document.getElementById('play').onclick = () => {
     prepare();
     const now = new Date(); let best = Infinity;
     DATA.times.forEach((t, i) => { if (new Date(t).getHours() % 3) return; const d = Math.abs(new Date(t) - now); if (d < best) { best = d; nowIdx = i; } });
-    buildStrip();
+    n3 = Math.ceil(DATA.times.length / 3);
+    buildTimeline();
     setIdx(nowIdx);
-    goNow();
+    scrollToIdx(nowIdx);
   } catch (e) { document.getElementById('status').textContent = 'エラー: ' + e.message; }
 })();
 </script>
