@@ -340,6 +340,21 @@ header{text-align:left!important;padding:0 2px}
 .badge-offshore{background:rgba(74,222,128,.2)!important;color:#86efac!important}
 .badge-cross{background:rgba(250,204,21,.2)!important;color:#fde68a!important}
 .badge-onshore{background:rgba(251,113,133,.22)!important;color:#fda4af!important}
+        .cat-mascot {
+            width: 48px;
+            height: 48px;
+            background-image: url('cats-surf.png');
+            background-repeat: no-repeat;
+            image-rendering: pixelated;
+            display: inline-block;
+        }
+        .cat-surfing {
+            background-position: 0px 0px; 
+        }
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-6px); }
+        }
 </style>
 </head>
 <body>
@@ -1176,5 +1191,6 @@ header{text-align:left!important;padding:0 2px}
 (function(){var p=location.pathname.split('/').pop()||'index.html';
 document.querySelectorAll('#tabbar a').forEach(function(a){if(a.getAttribute('href')===p)a.classList.add('on');});})();
 </script>
+    <div class="cat-mascot cat-surfing" style="position: fixed; bottom: 80px; right: 16px; z-index: 99; animation: float 2.5s ease-in-out infinite;"></div>
 </body>
 </html>
