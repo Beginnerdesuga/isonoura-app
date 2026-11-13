@@ -467,12 +467,6 @@ header{text-align:left!important;padding:0 2px;margin-bottom:8px!important}
     </div>
 
     <div class="page-notes">
-        <div class="scroll-hint">
-            <span id="selectedTimeLabel" class="selected-time-display">現在時刻を表示中</span>
-            <span>
-                <span class="legend-mark mark-day">■</span>昼 <span class="legend-mark mark-night">■</span>夜 / タップで日時選択 / 横スワイプ
-            </span>
-        </div>
         <p class="subtitle">Open-Meteo API リアルタイム連携</p>
         <p class="location-note">※ 観測地点: 北緯34.25, 東経135.08（磯の浦沖約1km）波・風起点：南南西・200°</p>
     </div>
@@ -867,12 +861,14 @@ header{text-align:left!important;padding:0 2px;margin-bottom:8px!important}
             const hours = t.getHours().toString().padStart(2, '0');
 
             const labelEl = document.getElementById('selectedTimeLabel');
-            if (index === nowIndex) {
-                labelEl.textContent = '現在時刻を表示中';
-                labelEl.style.background = '#334155';
-            } else {
-                labelEl.textContent = `${month}/${date} ${hours}:00 の予測`;
-                labelEl.style.background = '#0284c7';
+            if (labelEl) {
+                if (index === nowIndex) {
+                    labelEl.textContent = '現在時刻を表示中';
+                    labelEl.style.background = '#334155';
+                } else {
+                    labelEl.textContent = `${month}/${date} ${hours}:00 の予測`;
+                    labelEl.style.background = '#0284c7';
+                }
             }
 
             const curWave = globalData.waveHeights[index] != null ? Number(globalData.waveHeights[index]).toFixed(2) : '--';
