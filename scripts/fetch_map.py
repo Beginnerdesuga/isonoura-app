@@ -18,14 +18,23 @@ lons = frange(g["lon0"], g["lon1"], g["step"])
 points = [(la, lo) for la in lats for lo in lons]
 
 def get(url):
-    for k in range(3):
+    # 混み合っているときは待ってからやり直す（原因はログに残す）
+    waits = [10, 30, 60, 120]
+    for k in range(len(waits) + 1):
         try:
             with urllib.request.urlopen(url, timeout=60) as r:
                 return json.load(r)
         except Exception as e:
-            if k == 2:
+            body = ""
+            if hasattr(e, "read"):
+                try:
+                    body = e.read().decode("utf-8", "replace")[:300]
+                except Exception:
+                    pass
+            print("取得失敗", k + 1, "回目:", repr(e), body, flush=True)
+            if k == len(waits):
                 raise
-            time.sleep(5)
+            time.sleep(waits[k])
 
 def as_list(j):
     return j if isinstance(j, list) else [j]
@@ -55,7 +64,7 @@ for ch in chunks(points, 40):
             "h": [r1(v, 2) for v in h["wave_height"]],
             "d": [None if v is None else int(round(v)) for v in h["wave_direction"]],
         })
-    time.sleep(1)
+    time.sleep(3)
 
 spots = cfg["spots"]
 q = urllib.parse.urlencode({
