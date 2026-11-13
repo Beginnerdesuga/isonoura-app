@@ -183,7 +183,7 @@
         }
 
         .canvas-container {
-            height: 350px;
+            height: 225px;
             position: relative;
         }
 
@@ -226,7 +226,7 @@
 
         .main-chart-container {
             margin-left: var(--axis-width);
-            height: 350px;
+            height: 225px;
             position: relative;
         }
 
@@ -307,6 +307,14 @@
             z-index: 20;
         }
     
+
+/* ===== 説明書きを下部へ ===== */
+.controls{margin-top:4px!important}
+.btn-refresh{padding:4px 14px!important}
+#conditionAdviceCard{margin-top:6px!important}
+.page-notes{margin-top:14px;padding:0 4px}
+.page-notes .scroll-hint{margin:0 0 6px}
+
 /* ===== 共通タブバー ===== */
 body{padding-bottom:92px!important}
 .tabbar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(14px + env(safe-area-inset-bottom));width:calc(100% - 28px);max-width:400px;display:flex;gap:4px;padding:5px;background:rgba(15,36,66,.82);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.14);border-radius:999px;box-shadow:0 8px 24px rgba(0,0,0,.4);z-index:100}
@@ -324,7 +332,7 @@ body{background:linear-gradient(180deg,#0a1b33,#12365c)!important;color:#f8fafc;
 .selected-time-display{background:rgba(255,255,255,.12)!important;border-radius:999px!important;padding:2px 10px!important}
 .loading-overlay{background:rgba(21,48,79,.95)!important;border-radius:18px!important}
 header h1{font-size:1.15rem!important;letter-spacing:.04em;text-align:left}
-header{text-align:left!important;padding:0 2px}
+header{text-align:left!important;padding:0 2px;margin-bottom:8px!important}
 .subtitle,.location-note{color:#9fb4cc!important}
 
 /* ===== 上段カードの段そろえ・風バッジ ===== */
@@ -362,8 +370,6 @@ header{text-align:left!important;padding:0 2px}
 
     <header>
         <h1>🌊 磯の浦コンディション</h1>
-        <p class="subtitle">Open-Meteo API リアルタイム連携</p>
-        <p class="location-note">※ 観測地点: 北緯34.25, 東経135.08（磯の浦沖約1km）波・風起点：南南西・200°</p>
     </header>
 
     <div class="metrics-grid">
@@ -413,13 +419,6 @@ header{text-align:left!important;padding:0 2px}
          </div>
     </div>
 
-    <div class="scroll-hint">
-        <span id="selectedTimeLabel" class="selected-time-display">現在時刻を表示中</span>
-        <span>
-            <span class="legend-mark mark-day">■</span>昼 <span class="legend-mark mark-night">■</span>夜 / タップで日時選択 / 横スワイプ
-        </span>
-    </div>
-
     <div class="chart-card">
         <div id="loading" class="loading-overlay">取得中...</div>
 
@@ -437,7 +436,7 @@ header{text-align:left!important;padding:0 2px}
         <div class="chart-scroll-wrapper">
             <div class="chart-inner">
                 <div class="sticky-axis-container">
-                    <div style="height: 350px;">
+                    <div style="height: 225px;">
                         <canvas id="axisChart"></canvas>
                     </div>
                     <div class="axis-timeline-labels">
@@ -464,6 +463,17 @@ header{text-align:left!important;padding:0 2px}
     <div id="conditionAdviceCard" style="background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px; padding: 10px; margin-top: 12px; font-size: 0.8rem; line-height: 1.4;">
         <div style="font-weight: bold; color: var(--accent-wave); margin-bottom: 4px;">💡 コンディション予想</div>
         <div id="conditionAdviceText" style="color: #e2e8f0;">データ読み込み中...</div>
+    </div>
+
+    <div class="page-notes">
+        <div class="scroll-hint">
+            <span id="selectedTimeLabel" class="selected-time-display">現在時刻を表示中</span>
+            <span>
+                <span class="legend-mark mark-day">■</span>昼 <span class="legend-mark mark-night">■</span>夜 / タップで日時選択 / 横スワイプ
+            </span>
+        </div>
+        <p class="subtitle">Open-Meteo API リアルタイム連携</p>
+        <p class="location-note">※ 観測地点: 北緯34.25, 東経135.08（磯の浦沖約1km）波・風起点：南南西・200°</p>
     </div>
 
     <script>
