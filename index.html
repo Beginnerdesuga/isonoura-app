@@ -18,6 +18,8 @@
             --accent-weather: #facc15;
             --border-color: #334155;
             --axis-width: 42px;
+            --chart-h: clamp(200px, calc(100vh - 474px), 360px);
+            --chart-h: clamp(200px, calc(100svh - 474px), 360px);
         }
 
         * {
@@ -183,7 +185,7 @@
         }
 
         .canvas-container {
-            height: 225px;
+            height: var(--chart-h);
             position: relative;
         }
 
@@ -226,7 +228,7 @@
 
         .main-chart-container {
             margin-left: var(--axis-width);
-            height: 225px;
+            height: var(--chart-h);
             position: relative;
         }
 
@@ -312,7 +314,7 @@
 .controls{margin-top:4px!important}
 .btn-refresh{padding:4px 14px!important}
 #conditionAdviceCard{margin-top:6px!important}
-.page-notes{margin-top:14px;padding:0 4px}
+.page-notes{margin-top:120px;padding:0 4px}
 .page-notes .scroll-hint{margin:0 0 6px}
 
 /* ===== 共通タブバー ===== */
@@ -437,7 +439,7 @@ header{text-align:left!important;padding:0 2px;margin-bottom:8px!important}
         <div class="chart-scroll-wrapper">
             <div class="chart-inner">
                 <div class="sticky-axis-container">
-                    <div style="height: 225px;">
+                    <div style="height: var(--chart-h);">
                         <canvas id="axisChart"></canvas>
                     </div>
                     <div class="axis-timeline-labels">
