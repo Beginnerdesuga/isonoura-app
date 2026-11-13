@@ -5,12 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>磯の浦 波・潮・風・天気モニター</title>
     <meta name="theme-color" content="#0f172a">
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" href="icons/icon-192.png">
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="磯の浦">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
-            --bg-color: #0f172a;
-            --card-bg: #1e293b;
-            --text-primary: #f8fafc;
             --text-secondary: #94a3b8;
             --accent-wave: #38bdf8;
             --accent-tide: #fb923c;
@@ -19,35 +22,36 @@
             --border-color: #334155;
             --axis-width: 42px;
             --chart-h: clamp(200px, calc(100vh - 474px), 360px);
-            --chart-h: clamp(200px, calc(100svh - 474px), 360px);
+        }
+        @supports (height: 100svh) {
+            :root { --chart-h: clamp(200px, calc(100svh - 474px), 360px); }
         }
 
         * {
             box-sizing: border-box;
             margin: 0;
             padding: 0;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Hiragino Maru Gothic ProN", "Hiragino Sans", "Segoe UI", Roboto, Arial, sans-serif;
         }
 
         body {
-            background-color: var(--bg-color);
-            color: var(--text-primary);
-            padding: 12px;
+            background: linear-gradient(180deg, #0a1b33, #12365c);
+            color: #f8fafc;
+            padding: 12px 12px 92px; /* 下の92pxは、浮いているタブバーに隠れないための余白 */
             max-width: 600px;
+            min-height: 100vh;
             margin: 0 auto;
         }
 
-        /* ヘッダー */
+        /* ===== ヘッダー ===== */
         header {
-            text-align: center;
-            margin-bottom: 12px;
+            text-align: left;
+            padding: 0 2px;
+            margin-bottom: 8px;
         }
+        h1 { font-size: 1.15rem; font-weight: 700; letter-spacing: .04em; }
 
-        h1 { font-size: 1.2rem; font-weight: 700; }
-        .subtitle { font-size: 0.7rem; color: var(--text-secondary); }
-        .location-note { font-size: 0.65rem; color: #64748b; margin-top: 2px; }
-
-        /* メトリクスグリッド */
+        /* ===== 上段カード ===== */
         .metrics-grid {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
@@ -56,92 +60,112 @@
         }
 
         .metric-card {
-            background-color: var(--card-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            padding: 8px 2px;
+            background: rgba(255, 255, 255, .07);
+            border-radius: 18px;
+            padding: 9px 2px;
             text-align: center;
             display: flex;
             flex-direction: column;
         }
 
-        .metric-label { font-size: 0.65rem; color: var(--text-secondary); }
-        .metric-value { font-size: 0.95rem; font-weight: 700; margin-top: 2px; }
-
-        .metric-sub {
-            font-size: 0.85rem;
-            font-weight: 400;
-            color: #e2e8f0;
-            margin-top: 3px;
-            letter-spacing: -0.5px;
-            white-space: nowrap;
+        .metric-label {
+            height: 16px;
+            line-height: 16px;
+            font-size: .68rem;
+            color: #9fb4cc;
         }
 
+        .metric-value {
+            height: 24px;
+            line-height: 24px;
+            font-size: 15px;
+            font-weight: 500;
+            margin-top: 2px;
+        }
         .metric-value.wave { color: var(--accent-wave); }
         .metric-value.tide { color: var(--accent-tide); }
         .metric-value.wind { color: var(--accent-wind); }
-
         .metric-value.weather {
+            height: 26px;
+            line-height: 26px;
+            font-size: 1.3rem;
+            margin-top: 0;
             color: var(--accent-weather);
-            font-size: 1.8rem;
-            line-height: 1.1;
-            margin-top: 4px;
+        }
+
+        .metric-sub {
+            height: 20px;
+            line-height: 20px;
+            font-size: 12px;
+            font-weight: 400;
+            color: #e2e8f0;
+            letter-spacing: -0.5px;
+            white-space: nowrap;
+        }
+        #seaTempText {
+            height: 24px;
+            line-height: 24px;
+            font-size: 15px;
+            font-weight: 500;
+            margin-top: 2px;
+            color: var(--accent-wave);
         }
 
         .compass-wrap {
             display: flex;
             justify-content: center;
-            margin-top: 4px;
+            align-items: center;
+            height: 26px;
         }
         .compass-svg { width: 28px; height: 28px; }
 
         .moon-icon {
-            font-size: 1.1rem;
-            margin-top: 3px;
+            height: 26px;
+            line-height: 26px;
+            font-size: 1.05rem;
         }
 
         .wind-badge {
             display: inline-block;
-            font-size: 0.7rem;
-            padding: 1px 3px;
-            border-radius: 4px;
-            margin-top: 2px;
+            align-self: center;
+            max-width: 100%;
+            height: 20px;
+            line-height: 20px;
+            padding: 0 8px;
+            border-radius: 999px;
+            font-size: 11px;
             font-weight: 400;
             white-space: nowrap;
-            max-width: 100%;
             transform-origin: center;
         }
-        .badge-offshore { background-color: #166534; color: #4ade80; }
-        .badge-onshore { background-color: #991b1b; color: #fca5a5; }
-        .badge-cross { background-color: #854d0e; color: #fef08a; }
+        .badge-offshore { background: rgba(74, 222, 128, .2); color: #86efac; }
+        .badge-cross { background: rgba(250, 204, 21, .2); color: #fde68a; }
+        .badge-onshore { background: rgba(251, 113, 133, .22); color: #fda4af; }
 
-        .scroll-hint {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-size: 0.7rem;
-            color: var(--text-secondary);
-            margin-bottom: 4px;
-        }
-
-        .selected-time-display {
-            color: #f8fafc;
-            font-weight: bold;
-            background: #334155;
-            padding: 1px 6px;
-            border-radius: 4px;
-        }
-        .legend-mark { font-size: 0.9em; }
-        .mark-day { color: #facc15; }
-        .mark-night { color: #20252b; }
-
+        /* ===== グラフ ===== */
         .chart-card {
-            background-color: var(--card-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
+            background: #15304f;
+            border-radius: 18px;
             position: relative;
             overflow: hidden;
             padding: 10px 0 6px 0;
+        }
+
+        .cat-mascot {
+            position: absolute;
+            top: 42px;
+            right: 8px;
+            z-index: 15;
+            width: 64px;
+            height: 64px;
+            background: url('images/cats-surf.png') 0 0 / 384px auto no-repeat; /* 横長の画像を縮めて、左端の1コマを表示 */
+            image-rendering: pixelated;
+            pointer-events: none;
+            animation: float 2.5s ease-in-out infinite;
+        }
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-6px); }
         }
 
         .chart-legend-header {
@@ -149,7 +173,7 @@
             justify-content: space-between;
             align-items: center;
             padding: 0 12px 8px 12px;
-            border-bottom: 1px solid var(--border-color);
+            border-bottom: 1px solid rgba(255, 255, 255, .12);
             margin-bottom: 6px;
         }
 
@@ -160,13 +184,11 @@
             align-items: center;
             gap: 4px;
         }
-
         .legend-color-box {
             width: 10px;
             height: 10px;
             border-radius: 2px;
         }
-
         .legend-wave { color: var(--accent-wave); }
         .legend-wave .legend-color-box { background-color: var(--accent-wave); }
         .legend-tide { color: var(--accent-tide); }
@@ -178,17 +200,21 @@
             -webkit-overflow-scrolling: touch;
             position: relative;
         }
-
         .chart-inner {
             width: 6000px;
             position: relative;
         }
-
         .canvas-container {
             height: var(--chart-h);
             position: relative;
         }
+        .main-chart-container {
+            margin-left: var(--axis-width);
+            height: var(--chart-h);
+            position: relative;
+        }
 
+        /* 左に固定する軸 */
         .sticky-axis-container {
             position: sticky;
             left: 0;
@@ -196,13 +222,12 @@
             width: var(--axis-width);
             height: 100%;
             z-index: 10;
-            background-color: var(--card-bg);
+            background-color: #15304f;
             border-right: 1px solid rgba(51, 65, 85, 0.4);
             float: left;
             display: flex;
             flex-direction: column;
         }
-
         .axis-timeline-labels {
             height: 65px;
             margin-top: 6px;
@@ -211,9 +236,9 @@
             flex-direction: column;
             justify-content: space-around;
             align-items: center;
-            background-color: var(--card-bg);
+            background-color: #15304f;
         }
-
+        .axis-chart-box { height: var(--chart-h); }
         .axis-label-item {
             height: 20px;
             line-height: 20px;
@@ -221,17 +246,11 @@
             font-weight: bold;
             text-align: center;
         }
-
         .axis-label-item.wave-label { color: var(--accent-wave); }
         .axis-label-item.wind-val-label { color: var(--accent-wind); }
         .axis-label-item.wind-dir-label { color: var(--text-secondary); }
 
-        .main-chart-container {
-            margin-left: var(--axis-width);
-            height: var(--chart-h);
-            position: relative;
-        }
-
+        /* グラフ下の波向・風速・風向 */
         .timeline-wrapper {
             position: relative;
             border-top: 1px dashed var(--border-color);
@@ -240,133 +259,126 @@
             height: 65px;
             margin-left: var(--axis-width);
         }
-
         .timeline-col {
             position: absolute;
             transform: translateX(-50%);
             text-align: center;
             display: flex;
             flex-direction: column;
-            gap: 0;
             cursor: pointer;
             user-select: none;
         }
-
         .wave-dir-arrow, .wind-val, .wind-arrow {
             height: 20px;
             line-height: 20px;
         }
-
         .wave-dir-arrow {
             font-size: 0.8rem;
             color: var(--accent-wave);
             font-weight: bold;
         }
-
         .wind-val {
             font-size: 0.7rem;
             font-weight: 700;
             color: var(--accent-wind);
         }
-
         .wind-arrow {
             font-size: 0.85rem;
-            color: var(--text-primary);
+            color: #f8fafc;
         }
-
-        .controls {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-top: 12px;
-        }
-
-        .btn-refresh {
-            background-color: #0284c7;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            padding: 6px 14px;
-            font-size: 0.8rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: opacity 0.2s;
-        }
-
-        .btn-refresh:hover { opacity: 0.9; }
-
-        .last-update { font-size: 0.75rem; color: var(--text-secondary); }
 
         .loading-overlay {
             position: absolute;
             inset: 0;
-            background: rgba(30, 41, 59, 0.9);
-            border-radius: 12px;
+            background: rgba(21, 48, 79, .95);
+            border-radius: 18px;
             display: flex;
             justify-content: center;
             align-items: center;
             font-weight: 600;
             z-index: 20;
         }
-    
 
-/* ===== 説明書きを下部へ ===== */
-.controls{margin-top:4px!important}
-.btn-refresh{padding:4px 14px!important}
-#conditionAdviceCard{margin-top:6px!important}
-.page-notes{margin-top:120px;padding:0 4px}
-.page-notes .scroll-hint{margin:0 0 6px}
-
-/* ===== 共通タブバー ===== */
-body{padding-bottom:92px!important}
-.tabbar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(14px + env(safe-area-inset-bottom));width:calc(100% - 28px);max-width:400px;display:flex;gap:4px;padding:5px;background:rgba(15,36,66,.82);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.14);border-radius:999px;box-shadow:0 8px 24px rgba(0,0,0,.4);z-index:100}
-.tabbar a{flex:1;text-align:center;text-decoration:none;color:#b6c8dc;font-size:.78rem;font-weight:600;letter-spacing:.04em;padding:10px 4px;border-radius:999px;transition:background .2s,color .2s;white-space:nowrap;font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Segoe UI",Roboto,Arial,sans-serif}
-.tabbar a.on{background:#7dd3fc;color:#07304f;font-weight:700}
-
-/* ===== 共通トーン（3ページ共通の色・角丸・文字）===== */
-*{font-family:-apple-system,BlinkMacSystemFont,"Hiragino Maru Gothic ProN","Hiragino Sans","Segoe UI",Roboto,Arial,sans-serif}
-body{background:linear-gradient(180deg,#0a1b33,#12365c)!important;color:#f8fafc;min-height:100vh}
-.metric-card,#conditionAdviceCard{background:rgba(255,255,255,.07)!important;border:none!important;border-radius:18px!important}
-.chart-card{background:#15304f!important;border:none!important;border-radius:18px!important}
-.sticky-axis-container,.axis-timeline-labels{background:#15304f!important}
-.chart-legend-header{border-bottom-color:rgba(255,255,255,.12)!important}
-.btn-refresh{background:#7dd3fc!important;color:#07304f!important;border-radius:999px!important;font-weight:700!important;padding:7px 16px!important}
-.selected-time-display{background:rgba(255,255,255,.12)!important;border-radius:999px!important;padding:2px 10px!important}
-.loading-overlay{background:rgba(21,48,79,.95)!important;border-radius:18px!important}
-header h1{font-size:1.15rem!important;letter-spacing:.04em;text-align:left}
-header{text-align:left!important;padding:0 2px;margin-bottom:8px!important}
-.subtitle,.location-note{color:#9fb4cc!important}
-
-/* ===== 上段カードの段そろえ・風バッジ ===== */
-.metric-card{padding:9px 2px!important}
-.metric-label{height:16px;line-height:16px;font-size:.68rem;color:#9fb4cc!important}
-.metric-value{font-size:15px!important;font-weight:500!important;height:24px;line-height:24px;margin-top:2px!important}
-.metric-sub{font-size:12px!important;height:20px;line-height:20px;margin-top:0!important;color:#e2e8f0}
-#seaTempText{font-size:15px!important;font-weight:500!important;height:24px;line-height:24px;margin-top:2px!important;letter-spacing:-.5px;white-space:nowrap}
-.compass-wrap{height:26px;align-items:center;margin-top:0!important}
-.moon-icon{height:26px;line-height:26px;margin-top:0!important;font-size:1.05rem!important}
-.metric-value.weather{height:26px;line-height:26px;font-size:1.3rem!important;margin-top:0!important}
-.wind-badge{align-self:center;height:20px;line-height:20px;font-size:11px!important;padding:0 8px!important;margin-top:0!important;border-radius:999px!important}
-.badge-offshore{background:rgba(74,222,128,.2)!important;color:#86efac!important}
-.badge-cross{background:rgba(250,204,21,.2)!important;color:#fde68a!important}
-.badge-onshore{background:rgba(251,113,133,.22)!important;color:#fda4af!important}
-.cat-mascot {
-            width: 64px;
-            height: 64px;
-            background-image: url('images/cats-surf.png');
-            background-size: 384px auto; /* スプライト全体の横幅に合わせて自動縮小 */
-            background-repeat: no-repeat;
-            image-rendering: pixelated;
-            display: inline-block;
+        /* ===== 更新時刻・現在ボタン ===== */
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 4px;
         }
-        .cat-surfing {
-            background-position: 0px 0px; 
+        .last-update { font-size: 0.75rem; color: var(--text-secondary); }
+        .btn-refresh {
+            background: #7dd3fc;
+            color: #07304f;
+            border: none;
+            border-radius: 999px;
+            padding: 7px 16px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: opacity 0.2s;
         }
-        @keyframes float {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-6px); }
+        .btn-refresh:hover { opacity: 0.9; }
+
+        /* ===== コンディション予想と下部の説明 ===== */
+        #conditionAdviceCard {
+            background: rgba(255, 255, 255, .07);
+            border-radius: 18px;
+            padding: 10px;
+            margin-top: 6px;
+            font-size: 0.8rem;
+            line-height: 1.4;
         }
-</style>
+        .advice-title {
+            font-weight: bold;
+            color: var(--accent-wave);
+            margin-bottom: 4px;
+        }
+        #conditionAdviceText { color: #e2e8f0; }
+
+        .page-notes {
+            margin-top: 16px;
+            padding: 0 4px;
+            color: #9fb4cc;
+        }
+        .subtitle { font-size: 0.7rem; }
+        .location-note { font-size: 0.65rem; margin-top: 2px; }
+
+        /* ===== 下のタブバー（3ページ共通） ===== */
+        .tabbar {
+            position: fixed;
+            left: 50%;
+            transform: translateX(-50%);
+            bottom: calc(14px + env(safe-area-inset-bottom));
+            width: calc(100% - 28px);
+            max-width: 400px;
+            display: flex;
+            gap: 4px;
+            padding: 5px;
+            background: rgba(15, 36, 66, .82);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, .14);
+            border-radius: 999px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, .4);
+            z-index: 100;
+        }
+        .tabbar a {
+            flex: 1;
+            text-align: center;
+            text-decoration: none;
+            color: #b6c8dc;
+            font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Segoe UI", Roboto, Arial, sans-serif;
+            font-size: .78rem;
+            font-weight: 600;
+            letter-spacing: .04em;
+            padding: 10px 4px;
+            border-radius: 999px;
+            transition: background .2s, color .2s;
+            white-space: nowrap;
+        }
+        .tabbar a.on { background: #7dd3fc; color: #07304f; font-weight: 700; }
+    </style>
 </head>
 <body>
 
@@ -415,15 +427,15 @@ header{text-align:left!important;padding:0 2px;margin-bottom:8px!important}
         </div>
         <div class="metric-card">
             <div class="metric-label">天気 / 水温</div>
-            <div class="metric-sub" style="color: #38bdf8; font-weight: bold; margin-top: 3px;" id="seaTempText">水温 --℃</div>
+            <div class="metric-sub" id="seaTempText">水温 --℃</div>
             <div class="metric-sub" id="weatherText">--</div>
             <div class="metric-value weather" id="currentWeather">--</div>
-         </div>
+        </div>
     </div>
 
     <div class="chart-card">
         <div id="loading" class="loading-overlay">取得中...</div>
-        <div class="cat-mascot cat-surfing" style="position:absolute; top:42px; right:8px; z-index:15; pointer-events:none; animation: float 2.5s ease-in-out infinite;"></div>
+        <div class="cat-mascot"></div>
 
         <div class="chart-legend-header">
             <div class="legend-item legend-wave">
@@ -439,7 +451,7 @@ header{text-align:left!important;padding:0 2px;margin-bottom:8px!important}
         <div class="chart-scroll-wrapper">
             <div class="chart-inner">
                 <div class="sticky-axis-container">
-                    <div style="height: var(--chart-h);">
+                    <div class="axis-chart-box">
                         <canvas id="axisChart"></canvas>
                     </div>
                     <div class="axis-timeline-labels">
@@ -463,9 +475,9 @@ header{text-align:left!important;padding:0 2px;margin-bottom:8px!important}
         <button class="btn-refresh" onclick="resetToNow()">現在</button>
     </div>
 
-    <div id="conditionAdviceCard" style="background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px; padding: 10px; margin-top: 12px; font-size: 0.8rem; line-height: 1.4;">
-        <div style="font-weight: bold; color: var(--accent-wave); margin-bottom: 4px;">💡 コンディション予想</div>
-        <div id="conditionAdviceText" style="color: #e2e8f0;">データ読み込み中...</div>
+    <div id="conditionAdviceCard">
+        <div class="advice-title">💡 コンディション予想</div>
+        <div id="conditionAdviceText">データ読み込み中...</div>
     </div>
 
     <div class="page-notes">
@@ -858,21 +870,6 @@ header{text-align:left!important;padding:0 2px;margin-bottom:8px!important}
             if (!globalData || !globalData.times || !globalData.times[index]) return;
 
             const t = new Date(globalData.times[index]);
-            const month = t.getMonth() + 1;
-            const date = t.getDate();
-            const hours = t.getHours().toString().padStart(2, '0');
-
-            const labelEl = document.getElementById('selectedTimeLabel');
-            if (labelEl) {
-                if (index === nowIndex) {
-                    labelEl.textContent = '現在時刻を表示中';
-                    labelEl.style.background = '#334155';
-                } else {
-                    labelEl.textContent = `${month}/${date} ${hours}:00 の予測`;
-                    labelEl.style.background = '#0284c7';
-                }
-            }
-
             const curWave = globalData.waveHeights[index] != null ? Number(globalData.waveHeights[index]).toFixed(2) : '--';
             const tideIsCm = globalData.tideUnit === 'cm';
             const curTide = globalData.seaLevels[index] != null ? Number(globalData.seaLevels[index]).toFixed(tideIsCm ? 0 : 2) : '--';
@@ -1200,6 +1197,12 @@ header{text-align:left!important;padding:0 2px;margin-bottom:8px!important}
 <script>
 (function(){var p=location.pathname.split('/').pop()||'index.html';
 document.querySelectorAll('#tabbar a').forEach(function(a){if(a.getAttribute('href')===p)a.classList.add('on');});})();
+</script>
+<script>
+// ホーム画面にアプリとして追加できるようにする
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => { navigator.serviceWorker.register('./sw.js').catch(() => {}); });
+}
 </script>
 </body>
 </html>
