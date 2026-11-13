@@ -3,6 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0f172a">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="磯の浦">
 <title>波高マップ（日本海〜紀伊半島）</title>
 <style>
 :root{--bg:#0b1d33;--tx:#f8fafc;--tx2:#94a3b8}
@@ -442,6 +449,12 @@ document.getElementById('now').onclick = () => { stop(); setIdx(nowIdx); scrollT
 <script>
 (function(){var p=location.pathname.split('/').pop()||'index.html';
 document.querySelectorAll('#tabbar a').forEach(function(a){if(a.getAttribute('href')===p)a.classList.add('on');});})();
+</script>
+<script>
+// ホーム画面にアプリとして追加できるようにする
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => { navigator.serviceWorker.register('./sw.js').catch(() => {}); });
+}
 </script>
 </body>
 </html>
