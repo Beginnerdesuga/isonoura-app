@@ -113,11 +113,35 @@ function tidePhase(date){const h=SYN/2,p=moonAge(date)%h;
 const moonEmoji=d=>['🌑','🌒','🌓','🌔','🌕','🌖','🌗','🌘'][Math.round(moonAge(d)/SYN*8)%8];
 
 // ===== 取得 =====
+// 通信が止まったら打ち切って、待ち時間を延ばしながらやり直す（3秒→5秒→8秒）
+async function fetchRetry(url){
+  const waits=[3000,5000,8000];
+  let lastErr;
+  for(let i=0;i<waits.length;i++){
+    const ctl=new AbortController();
+    const timer=setTimeout(()=>ctl.abort(),waits[i]);
+    try{
+      const res=await fetch(url,{signal:ctl.signal});
+      const body=await res.arrayBuffer();
+      clearTimeout(timer);
+      if(res.status>=500||res.status===429){
+        lastErr=new Error('HTTP '+res.status);
+        await new Promise(r=>setTimeout(r,1000));
+        continue;
+      }
+      return new Response(body,{status:res.status,statusText:res.statusText,headers:res.headers});
+    }catch(e){
+      clearTimeout(timer);
+      lastErr=(e&&e.name==='AbortError')?new Error('通信がタイムアウトしました'):e;
+    }
+  }
+  throw lastErr||new Error('取得に失敗しました');
+}
 async function fetchSpot(s){
   const tz='timezone=Asia%2FTokyo&forecast_days='+FETCH_DAYS;
   const um=`https://marine-api.open-meteo.com/v1/marine?latitude=${s.lat}&longitude=${s.lon}&hourly=wave_height,swell_wave_direction,swell_wave_period,sea_surface_temperature&${tz}`;
   const uw=`https://api.open-meteo.com/v1/forecast?latitude=${s.lat}&longitude=${s.lon}&hourly=wind_speed_10m,wind_direction_10m,weather_code&wind_speed_unit=ms&${tz}`;
-  const [rm,rw]=await Promise.all([fetch(um),fetch(uw)]);
+  const [rm,rw]=await Promise.all([fetchRetry(um),fetchRetry(uw)]);
   if(!rm.ok||!rw.ok)throw new Error(s.name+'：データ取得に失敗しました');
   const jm=(await rm.json()).hourly, jw=(await rw.json()).hourly;
   const wi={};(jw.time||[]).forEach((t,i)=>wi[t]=i);
